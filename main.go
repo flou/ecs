@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"sort"
 	"strconv"
@@ -111,8 +110,7 @@ func executeMonitor() {
 	if *monitorCluster == "" {
 		clusterNames = listClusters(*filter)
 	}
-	clusters := describeClusters(clusterNames)
-	for _, cluster := range clusters {
+	for _, cluster := range describeClusters(clusterNames) {
 		services := listServices(*cluster.ClusterName)
 		headerLine := fmt.Sprintf(
 			"--- CLUSTER: %s (%d services)\n",
@@ -151,7 +149,7 @@ func listClusters(filter string) []string {
 	clusterNames := []string{}
 	listClusterOutput, err := client.ListClustersRequest(&ecs.ListClustersInput{}).Send()
 	if err != nil {
-		log.Printf("Failed to list clusters: " + err.Error())
+		fmt.Printf("Failed to list clusters: " + err.Error())
 		os.Exit(1)
 	}
 
@@ -159,7 +157,7 @@ func listClusters(filter string) []string {
 		clusterNames = listClusterOutput.ClusterArns
 	} else {
 		for _, cluster := range listClusterOutput.ClusterArns {
-			if strings.Contains(cluster, filter) {
+			if strings.Contains(strings.ToLower(cluster), strings.ToLower(filter)) {
 				clusterNames = append(clusterNames, cluster)
 			}
 		}
@@ -172,7 +170,7 @@ func describeClusters(clusters []string) []ecs.Cluster {
 	descClusterReq := client.DescribeClustersRequest(&ecs.DescribeClustersInput{Clusters: clusters})
 	descClusterOutput, err := descClusterReq.Send()
 	if err != nil {
-		log.Printf("Failed to describe clusters: " + err.Error())
+		fmt.Printf("Failed to describe clusters: " + err.Error())
 		os.Exit(1)
 	}
 	sort.Slice(descClusterOutput.Clusters, func(i, j int) bool {
@@ -192,8 +190,7 @@ func listServices(cluster string) []ecs.Service {
 		serviceNames = append(serviceNames, page.ServiceArns...)
 	}
 	sort.Strings(serviceNames)
-	servicesList := chunk(serviceNames, 10)
-	for _, services := range servicesList {
+	for _, services := range chunk(serviceNames, 10) {
 		if len(services) > 0 {
 			descServices := describeServices(cluster, services)
 			ecsServices = append(ecsServices, descServices...)
@@ -207,7 +204,7 @@ func describeServices(cluster string, services []string) []ecs.Service {
 	params := ecs.DescribeServicesInput{Cluster: &cluster, Services: services}
 	resp, err := client.DescribeServicesRequest(&params).Send()
 	if err != nil {
-		log.Printf("Failed to describe services: " + err.Error())
+		fmt.Printf("Failed to describe services: " + err.Error())
 		os.Exit(1)
 	}
 	return resp.Services
@@ -266,7 +263,7 @@ func serviceTaskDefinition(service *ecs.Service) ecs.TaskDefinition {
 	resp, err := client.DescribeTaskDefinitionRequest(
 		&ecs.DescribeTaskDefinitionInput{TaskDefinition: service.TaskDefinition}).Send()
 	if err != nil {
-		log.Printf("Failed to describe task definition: " + err.Error())
+		fmt.Printf("Failed to describe task definition: " + err.Error())
 		os.Exit(1)
 	}
 	return *resp.TaskDefinition
