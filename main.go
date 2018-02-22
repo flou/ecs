@@ -144,7 +144,12 @@ func executeInstances() {
 			fmt.Printf("Failed to list container instances: " + err.Error())
 			os.Exit(1)
 		}
+		fmt.Printf("--- CLUSTER: %s (%d registered instances)\n",
+			*cluster.ClusterName,
+			len(listContainerResp.ContainerInstanceArns),
+		)
 		if len(listContainerResp.ContainerInstanceArns) == 0 {
+			fmt.Println()
 			continue
 		}
 		describeContainerInstancesResp, err := client.DescribeContainerInstancesRequest(
@@ -178,7 +183,6 @@ func executeInstances() {
 			}
 		}
 
-		fmt.Printf("--- CLUSTER: %s\n", *cluster.ClusterName)
 		fmt.Printf(
 			"%-20s  %-8s %5s  %8s %8s  %8s %8s  %15s %12s  %5v  %s\n",
 			"INSTANCE ID", "STATUS", "TASKS", "CPU/used", "CPU/free",
