@@ -10,6 +10,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/mitchellh/colorstring"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -17,6 +18,7 @@ import (
 
 var (
 	client *ecs.ECS
+	cfg    aws.Config
 
 	app    = kingpin.New("ecs", "ECS Tools")
 	region = app.Flag("region", "AWS Region").Short('r').String()
@@ -25,7 +27,10 @@ var (
 	monitorCluster = monitor.Flag("cluster", "Select the ECS cluster to monitor").String()
 	filter         = monitor.Flag("filter", "Filter by the name of the ECS cluster").Short('f').String()
 	longOutput     = monitor.Flag("long", "Enable detailed output of containers parameters").Short('l').Bool()
-	printAll       = monitor.Flag("all", "Enable detailed output of containers parameters").Short('a').Bool()
+	printAll       = monitor.Flag("all", "List all services in the cluster").Short('a').Bool()
+
+	instances       = app.Command("instances", "List container instances in your ECS clusters")
+	instancesFilter = instances.Flag("filter", "Filter by the name of the ECS cluster").Short('f').String()
 
 	scaleService = app.Command("scale", "Scale the service to a specific DesiredCount")
 	cluster      = scaleService.Flag("cluster", "Name of the ECS cluster").Required().String()
@@ -39,7 +44,7 @@ var (
 
 func main() {
 	res, err := app.Parse(os.Args[1:])
-	cfg := loadAWSConfig()
+	cfg = loadAWSConfig()
 	client = ecs.New(cfg)
 	switch kingpin.MustParse(res, err) {
 	case monitor.FullCommand():
@@ -48,6 +53,8 @@ func main() {
 		executeScaleService()
 	case image.FullCommand():
 		executeServiceImage()
+	case instances.FullCommand():
+		executeInstances()
 	}
 }
 
@@ -91,20 +98,6 @@ func executeScaleService() {
 	fmt.Printf("Service %s successfully updated with DesiredCount=%d", *service, *desiredCount)
 }
 
-func findService(cluster, service string) (ecs.Service, error) {
-	var ecsService ecs.Service
-	runningServices := describeServices(cluster, []string{service})
-	if len(runningServices) == 0 {
-		fmt.Printf("No running service %s in cluster %s\n", service, cluster)
-		return ecsService, errors.New("No service in cluster")
-	}
-	if len(runningServices) > 1 {
-		fmt.Printf("Found more than 1 service named %s in cluster %s\n", service, cluster)
-		return ecsService, errors.New("No service in cluster")
-	}
-	return runningServices[0], nil
-}
-
 func executeMonitor() {
 	clusterNames := []string{*monitorCluster}
 	if *monitorCluster == "" {
@@ -138,6 +131,109 @@ func executeMonitor() {
 		}
 		fmt.Println()
 	}
+}
+
+func executeInstances() {
+	clusterNames := listClusters(*instancesFilter)
+	ec2Client := ec2.New(cfg)
+	for _, cluster := range describeClusters(clusterNames) {
+		var containerInstanceIds []string
+		listContainerResp, err := client.ListContainerInstancesRequest(
+			&ecs.ListContainerInstancesInput{Cluster: cluster.ClusterName}).Send()
+		if err != nil {
+			fmt.Printf("Failed to list container instances: " + err.Error())
+			os.Exit(1)
+		}
+		if len(listContainerResp.ContainerInstanceArns) == 0 {
+			continue
+		}
+		describeContainerInstancesResp, err := client.DescribeContainerInstancesRequest(
+			&ecs.DescribeContainerInstancesInput{
+				Cluster:            cluster.ClusterName,
+				ContainerInstances: listContainerResp.ContainerInstanceArns,
+			}).Send()
+		if err != nil {
+			fmt.Printf("Failed to describe container instances: " + err.Error())
+			os.Exit(1)
+		}
+
+		for _, cinst := range describeContainerInstancesResp.ContainerInstances {
+			containerInstanceIds = append(containerInstanceIds, *cinst.Ec2InstanceId)
+		}
+		describeInstanceResp, err := ec2Client.DescribeInstancesRequest(
+			&ec2.DescribeInstancesInput{InstanceIds: containerInstanceIds}).Send()
+
+		if err != nil {
+			fmt.Printf("Failed to describe EC2 instances: " + err.Error())
+			os.Exit(1)
+		}
+		instancesAttrs := make(map[string]map[string]string)
+		for _, res := range describeInstanceResp.Reservations {
+			for _, inst := range res.Instances {
+				instance := map[string]string{
+					"IpAddress": *inst.PrivateIpAddress,
+					"NameTag":   *findTag(inst.Tags, "Name").Value,
+				}
+				instancesAttrs[*inst.InstanceId] = instance
+			}
+		}
+
+		fmt.Printf("--- CLUSTER: %s\n", *cluster.ClusterName)
+		fmt.Printf(
+			"%-20s  %-8s %5s  %8s %8s  %8s %8s  %15s %12s  %5v  %s\n",
+			"INSTANCE ID", "STATUS", "TASKS", "CPU/used", "CPU/free",
+			"MEM/used", "MEM/free", "PRIVATE IP", "INST.TYPE", "AGENT",
+			"NAME",
+		)
+		for _, cinst := range describeContainerInstancesResp.ContainerInstances {
+			registeredCPU := *findResource(cinst.RegisteredResources, "CPU").IntegerValue
+			remainingCPU := *findResource(cinst.RemainingResources, "CPU").IntegerValue
+			registeredMemory := *findResource(cinst.RegisteredResources, "MEMORY").IntegerValue
+			remainingMemory := *findResource(cinst.RemainingResources, "MEMORY").IntegerValue
+			instanceType := *findAttribute(cinst.Attributes, "ecs.instance-type").Value
+			instanceAttrs := instancesAttrs[*cinst.Ec2InstanceId]
+			fmt.Printf(
+				"%-20s  %-8s %5d  %8d %8d  %8d %8d  %15s %12s  %-5v  %s\n",
+				*cinst.Ec2InstanceId, *cinst.Status, *cinst.RunningTasksCount,
+				registeredCPU-remainingCPU, remainingCPU, registeredMemory-remainingMemory, remainingMemory,
+				instanceAttrs["IpAddress"], instanceType, *cinst.AgentConnected, instanceAttrs["NameTag"],
+			)
+		}
+		fmt.Println()
+	}
+}
+
+func findResource(resources []ecs.Resource, name string) ecs.Resource {
+	var resource ecs.Resource
+	for _, res := range resources {
+		if *res.Name == name {
+			resource = res
+			break
+		}
+	}
+	return resource
+}
+
+func findAttribute(attributes []ecs.Attribute, name string) ecs.Attribute {
+	var attribute ecs.Attribute
+	for _, attr := range attributes {
+		if *attr.Name == name {
+			attribute = attr
+			break
+		}
+	}
+	return attribute
+}
+
+func findTag(tags []ec2.Tag, name string) ec2.Tag {
+	var tag ec2.Tag
+	for _, t := range tags {
+		if *t.Key == name {
+			tag = t
+			break
+		}
+	}
+	return tag
 }
 
 func shortTaskDefinitionName(taskDefinition string) string {
@@ -208,6 +304,20 @@ func describeServices(cluster string, services []string) []ecs.Service {
 		os.Exit(1)
 	}
 	return resp.Services
+}
+
+func findService(cluster, service string) (ecs.Service, error) {
+	var ecsService ecs.Service
+	runningServices := describeServices(cluster, []string{service})
+	if len(runningServices) == 0 {
+		fmt.Printf("No running service %s in cluster %s\n", service, cluster)
+		return ecsService, errors.New("No service in cluster")
+	}
+	if len(runningServices) > 1 {
+		fmt.Printf("Found more than 1 service named %s in cluster %s\n", service, cluster)
+		return ecsService, errors.New("No service in cluster")
+	}
+	return runningServices[0], nil
 }
 
 // Split a list of strings into a list of smaller lists containing up to `count` items
