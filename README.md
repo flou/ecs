@@ -1,5 +1,7 @@
 # ECS tools
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/flou/ecs)](https://goreportcard.com/report/github.com/flou/ecs)
+
 ## Installation
 
 ```
