@@ -177,17 +177,17 @@ func executeInstances() {
 			for _, inst := range res.Instances {
 				instance := map[string]string{
 					"IpAddress": *inst.PrivateIpAddress,
+					"ImageId":   *inst.ImageId,
 					"NameTag":   *findTag(inst.Tags, "Name").Value,
 				}
 				instancesAttrs[*inst.InstanceId] = instance
 			}
 		}
-
 		fmt.Printf(
-			"%-20s  %-8s %5s  %8s %8s  %8s %8s  %15s %12s  %5v  %s\n",
+			"%-20s  %-8s %5s  %8s %8s  %8s %8s  %15s %12s  %5v  %-12s  %s\n",
 			"INSTANCE ID", "STATUS", "TASKS", "CPU/used", "CPU/free",
 			"MEM/used", "MEM/free", "PRIVATE IP", "INST.TYPE", "AGENT",
-			"NAME",
+			"IMAGE", "NAME",
 		)
 		for _, cinst := range describeContainerInstancesResp.ContainerInstances {
 			registeredCPU := *findResource(cinst.RegisteredResources, "CPU").IntegerValue
@@ -197,10 +197,11 @@ func executeInstances() {
 			instanceType := *findAttribute(cinst.Attributes, "ecs.instance-type").Value
 			instanceAttrs := instancesAttrs[*cinst.Ec2InstanceId]
 			fmt.Printf(
-				"%-20s  %-8s %5d  %8d %8d  %8d %8d  %15s %12s  %-5v  %s\n",
+				"%-20s  %-8s %5d  %8d %8d  %8d %8d  %15s %12s  %-5v  %12s  %s\n",
 				*cinst.Ec2InstanceId, *cinst.Status, *cinst.RunningTasksCount,
 				registeredCPU-remainingCPU, remainingCPU, registeredMemory-remainingMemory, remainingMemory,
-				instanceAttrs["IpAddress"], instanceType, *cinst.AgentConnected, instanceAttrs["NameTag"],
+				instanceAttrs["IpAddress"], instanceType, *cinst.AgentConnected, instanceAttrs["ImageId"],
+				instanceAttrs["NameTag"],
 			)
 		}
 		fmt.Println()
