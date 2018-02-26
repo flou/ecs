@@ -107,4 +107,52 @@ $ ecs monitor --long --filter prod
    - PROJECT: acme
 ```
 
+## List instances in ECS clusters
+
+```
+usage: ecs instances [<flags>]
+
+List container instances in your ECS clusters
+
+Flags:
+      --help           Show context-sensitive help (also try --help-long and --help-man).
+  -r, --region=REGION  AWS Region
+  -f, --filter=FILTER  Filter by the name of the ECS cluster
+```
+
+Example:
+
+```
+$ ecs instances -f ecs-mycluster
+--- CLUSTER: ecs-mycluster-dev (2 registered instances)
+INSTANCE ID           STATUS   TASKS  CPU/used CPU/free  MEM/used MEM/free       PRIVATE IP    INST.TYPE  AGENT  IMAGE         NAME
+i-0a2cc6d9443941234   ACTIVE       3       768     1280      1152     2800       10.0.98.85    t2.medium  true   ami-0693ed7f  asg-ecs-mycluster-dev
+i-020ff52ddb0538d4a   ACTIVE       3       384     1664       768     3184     10.0.125.146    t2.medium  true   ami-0693ed7f  asg-ecs-mycluster-dev
+
+--- CLUSTER: ecs-mycluster-prod (3 registered instances)
+INSTANCE ID           STATUS   TASKS  CPU/used CPU/free  MEM/used MEM/free       PRIVATE IP    INST.TYPE  AGENT  IMAGE         NAME
+i-01fad74c0f1b57b85   ACTIVE      11       704     3392      7072     8976      10.0.105.39    m4.xlarge  true   ami-0693ed7f  asg-ecs-mycluster-prod
+i-0c75cf9cee1cb5d9e   ACTIVE       6       384     3712      4352    11696      10.0.118.76    m4.xlarge  true   ami-0693ed7f  asg-ecs-mycluster-prod
+i-0c61781827ef44a52   ACTIVE       2       128     3968      1536    14512     10.0.104.249    m4.xlarge  true   ami-0693ed7f  asg-ecs-mycluster-prod
+```
+
 ## Scale
+
+```
+usage: ecs scale --cluster=CLUSTER --service=SERVICE --count=COUNT
+
+Scale the service to a specific DesiredCount
+
+Flags:
+      --help             Show context-sensitive help (also try --help-long and --help-man).
+  -r, --region=REGION    AWS Region
+      --cluster=CLUSTER  Name of the ECS cluster
+      --service=SERVICE  Name of the service
+      --count=COUNT      New DesiredCount
+```
+
+Example:
+
+```
+ecs scale --cluster ecs-mycluster-prod --service tools-jenkins-prod-1 --count 0
+```
