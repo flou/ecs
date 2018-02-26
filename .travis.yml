@@ -6,9 +6,6 @@ matrix:
       env: LATEST=true
     - go: "1.9"
     - go: "1.10"
-    - go: tip
-  allow_failures:
-    - go: tip
 
 before_install:
   - go get github.com/mitchellh/gox

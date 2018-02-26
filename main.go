@@ -20,8 +20,9 @@ var (
 	client *ecs.ECS
 	cfg    aws.Config
 
-	app    = kingpin.New("ecs", "ECS Tools")
-	region = app.Flag("region", "AWS Region").Short('r').String()
+	appVersion = "0.0.1"
+	app        = kingpin.New("ecs", "ECS Tools")
+	region     = app.Flag("region", "AWS Region").Short('r').String()
 
 	monitor        = app.Command("monitor", "List unhealthy services in your ECS clusters")
 	monitorCluster = monitor.Flag("cluster", "Select the ECS cluster to monitor").String()
@@ -43,6 +44,7 @@ var (
 )
 
 func main() {
+	app.Version(appVersion)
 	res, err := app.Parse(os.Args[1:])
 	cfg = loadAWSConfig()
 	client = ecs.New(cfg)
