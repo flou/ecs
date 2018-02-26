@@ -32,4 +32,6 @@ deploy:
     - ecs.linux.amd64
   on:
     repo: flou/ecs
+    all_branches: true
+    tags: true
     condition: $LATEST = true

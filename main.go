@@ -20,7 +20,7 @@ var (
 	client *ecs.ECS
 	cfg    aws.Config
 
-	appVersion = "0.0.2"
+	appVersion = "0.0.3"
 	app        = kingpin.New("ecs", "ECS Tools")
 	region     = app.Flag("region", "AWS Region").Short('r').String()
 
