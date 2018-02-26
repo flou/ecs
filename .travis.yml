@@ -27,9 +27,9 @@ deploy:
   api_key:
     secure: mIgl9fSECnicUZ1ou68tG2EXeHZrH6X8+Sd+iAEUcaIdHadxrp3qXeRlf9H8LQjVqKjirgHEB+rodtHDHrrpVSq3aEhctEUYWLRjiUW/723lEoFd8ThmDDFavAIVvaSWzHyStZawV23YOXAx9r4QYwyixP76aBQnltPJZ8386hpacfEQ/G1hT7T8zbRpgAHzyI3YQK8qwR7evR0ioklZUYtfdh00ZF835we7ZdKY7xbLsNB2dsynUZJkO8zb+eboQJXpC3kyp5r40U4mTxUAe9XWDs+2/JULwyVrk+suQMwmT0oRSW6gntdsAOdnpEMfG2j79iPGK0mGPil9gsbOhEO+0+5u6auN3Z9MTBfQV+uQnm86ohanCOMu0r4eNArTOvUPKJclh47YphkbqGssQ/WaMk1k+CVNG0aKoZCb0dXmvejuUtTpZtB1GjQjdTuebhuhIoJuO+rw7/u30QhiTz34boscIdNTw9ert6jiI1yoe2t2//8YiUeZ60UkvyJ2vqWvnUGC8AQjx/mlS6lLhJ/hbb/38MWE6lh6FX9P41Klgjhxc88Tz2o5f9IpGf2e15ObvoYhLeHl6acfAJvl0pFKP+7NqYzfHEsSFyqmhWIqkzR187uKH2x1MzkNVfQai3HhENa5G5x+wKSUWlQO8pqVEVI/QSOifbzH9DVhbMM=
   file:
-    - ecs.windows.amd64.exe
-    - ecs.darwin.amd64
-    - ecs.linux.amd64
+    - ecs_windows_amd64.exe
+    - ecs_darwin_amd64
+    - ecs_linux_amd64
   on:
     repo: flou/ecs
     all_branches: true
