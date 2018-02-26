@@ -20,7 +20,7 @@ var (
 	client *ecs.ECS
 	cfg    aws.Config
 
-	appVersion = "0.0.3"
+	appVersion = "0.0.4"
 	app        = kingpin.New("ecs", "ECS Tools")
 	region     = app.Flag("region", "AWS Region").Short('r').String()
 
@@ -63,8 +63,7 @@ func main() {
 func executeServiceImage() {
 	ecsService, err := findService(*imageCluster, *imageService)
 	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
+		app.Fatalf(err.Error())
 	}
 	taskDefinition := serviceTaskDefinition(&ecsService)
 	for _, container := range taskDefinition.ContainerDefinitions {
@@ -75,8 +74,7 @@ func executeServiceImage() {
 func executeScaleService() {
 	ecsService, err := findService(*cluster, *service)
 	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
+		app.Fatalf(err.Error())
 	}
 	if *ecsService.DesiredCount == *desiredCount {
 		fmt.Printf("Service %s already has a DesiredCount of %d",
@@ -94,8 +92,7 @@ func executeScaleService() {
 		DesiredCount: desiredCount,
 	}).Send()
 	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
+		app.Fatalf(err.Error())
 	}
 	fmt.Printf("Service %s successfully updated with DesiredCount=%d", *service, *desiredCount)
 }
@@ -143,8 +140,7 @@ func executeInstances() {
 		listContainerResp, err := client.ListContainerInstancesRequest(
 			&ecs.ListContainerInstancesInput{Cluster: cluster.ClusterName}).Send()
 		if err != nil {
-			fmt.Printf("Failed to list container instances: " + err.Error())
-			os.Exit(1)
+			app.Fatalf("Failed to list container instances: " + err.Error())
 		}
 		fmt.Printf("--- CLUSTER: %s (%d registered instances)\n",
 			*cluster.ClusterName,
@@ -160,8 +156,7 @@ func executeInstances() {
 				ContainerInstances: listContainerResp.ContainerInstanceArns,
 			}).Send()
 		if err != nil {
-			fmt.Printf("Failed to describe container instances: " + err.Error())
-			os.Exit(1)
+			app.Fatalf("Failed to describe container instances: " + err.Error())
 		}
 
 		for _, cinst := range describeContainerInstancesResp.ContainerInstances {
@@ -171,8 +166,7 @@ func executeInstances() {
 			&ec2.DescribeInstancesInput{InstanceIds: containerInstanceIds}).Send()
 
 		if err != nil {
-			fmt.Printf("Failed to describe EC2 instances: " + err.Error())
-			os.Exit(1)
+			app.Fatalf("Failed to describe EC2 instances: " + err.Error())
 		}
 		instancesAttrs := make(map[string]map[string]string)
 		for _, res := range describeInstanceResp.Reservations {
@@ -252,8 +246,7 @@ func listClusters(filter string) []string {
 	clusterNames := []string{}
 	listClusterOutput, err := client.ListClustersRequest(&ecs.ListClustersInput{}).Send()
 	if err != nil {
-		fmt.Printf("Failed to list clusters: " + err.Error())
-		os.Exit(1)
+		app.Fatalf("Failed to list clusters: " + err.Error())
 	}
 
 	if filter == "" {
@@ -273,8 +266,7 @@ func describeClusters(clusters []string) []ecs.Cluster {
 	descClusterReq := client.DescribeClustersRequest(&ecs.DescribeClustersInput{Clusters: clusters})
 	descClusterOutput, err := descClusterReq.Send()
 	if err != nil {
-		fmt.Printf("Failed to describe clusters: " + err.Error())
-		os.Exit(1)
+		app.Fatalf("Failed to describe clusters: " + err.Error())
 	}
 	sort.Slice(descClusterOutput.Clusters, func(i, j int) bool {
 		return *descClusterOutput.Clusters[i].ClusterName < *descClusterOutput.Clusters[j].ClusterName
@@ -307,8 +299,7 @@ func describeServices(cluster string, services []string) []ecs.Service {
 	params := ecs.DescribeServicesInput{Cluster: &cluster, Services: services}
 	resp, err := client.DescribeServicesRequest(&params).Send()
 	if err != nil {
-		fmt.Printf("Failed to describe services: " + err.Error())
-		os.Exit(1)
+		app.Fatalf("Failed to describe services: " + err.Error())
 	}
 	return resp.Services
 }
@@ -345,7 +336,7 @@ func chunk(list []string, count int) [][]string {
 func loadAWSConfig() aws.Config {
 	cfg, err := external.LoadDefaultAWSConfig()
 	if err != nil {
-		panic("Failed to load AWS SDK configuration, " + err.Error())
+		app.Fatalf("Failed to load AWS SDK configuration, " + err.Error())
 	}
 	if *region != "" {
 		cfg.Region = *region
@@ -380,8 +371,7 @@ func serviceTaskDefinition(service *ecs.Service) ecs.TaskDefinition {
 	resp, err := client.DescribeTaskDefinitionRequest(
 		&ecs.DescribeTaskDefinitionInput{TaskDefinition: service.TaskDefinition}).Send()
 	if err != nil {
-		fmt.Printf("Failed to describe task definition: " + err.Error())
-		os.Exit(1)
+		app.Fatalf("Failed to describe task definition: " + err.Error())
 	}
 	return *resp.TaskDefinition
 }
