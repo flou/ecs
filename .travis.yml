@@ -33,5 +33,5 @@ deploy:
   on:
     repo: flou/ecs
     all_branches: true
-    tags: true
+    # tags: true
     condition: $LATEST = true
