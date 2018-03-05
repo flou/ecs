@@ -1,50 +1,64 @@
-// Copyright © 2018 NAME HERE <EMAIL ADDRESS>
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package cmd
 
 import (
 	"fmt"
+	"os"
 
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/mitchellh/colorstring"
 	"github.com/spf13/cobra"
 )
 
-// scaleCmd represents the scale command
+var (
+	scaleCluster      string
+	scaleService      string
+	scaleDesiredCount int64
+)
+
 var scaleCmd = &cobra.Command{
 	Use:   "scale",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("scale called")
-	},
+	Short: "Scale the service to a specific DesiredCount",
+	Run:   runCommandScale,
 }
 
 func init() {
 	rootCmd.AddCommand(scaleCmd)
 
-	// Here you will define your flags and configuration settings.
+	scaleCmd.Flags().StringVar(&scaleCluster, "cluster", "", "Name of the ECS cluster")
+	scaleCmd.Flags().StringVar(&scaleService, "service", "", "Name of the ECS service")
+	scaleCmd.Flags().Int64Var(&scaleDesiredCount, "count", 0, "New DesiredCount")
+	scaleCmd.MarkFlagRequired("cluster")
+	scaleCmd.MarkFlagRequired("service")
+	scaleCmd.MarkFlagRequired("count")
+}
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// scaleCmd.PersistentFlags().String("foo", "", "A help for foo")
+func runCommandScale(cmd *cobra.Command, args []string) {
+	cfg := loadAWSConfig(awsRegion)
+	client := ecs.New(cfg)
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// scaleCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	ecsService, err := findService(client, scaleCluster, scaleService)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	if *ecsService.DesiredCount == scaleDesiredCount {
+		colorstring.Printf("Service [yellow]%s[reset] already has a DesiredCount of %d\n",
+			scaleService, scaleDesiredCount,
+		)
+		return
+	}
+	colorstring.Printf(
+		"Updating [yellow]%s[reset] / DesiredCount[%d -> %d] RunningCount={%d}\n",
+		scaleService, *ecsService.DesiredCount, scaleDesiredCount, *ecsService.RunningCount,
+	)
+	_, err = client.UpdateServiceRequest(&ecs.UpdateServiceInput{
+		Cluster:      &scaleCluster,
+		Service:      &scaleService,
+		DesiredCount: &scaleDesiredCount,
+	}).Send()
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	fmt.Printf("Service %s successfully updated with DesiredCount=%d", scaleService, scaleDesiredCount)
 }

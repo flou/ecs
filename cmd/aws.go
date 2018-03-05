@@ -197,10 +197,9 @@ func serviceTaskDefinition(client *ecs.ECS, service *ecs.Service) ecs.TaskDefini
 }
 
 func printServiceDetails(client *ecs.ECS, service *ecs.Service, longOutput bool) {
-	fmt.Printf(
-		"%-15s %-60s %-8s running %d/%d  (%s)\n",
-		serviceStatus(service),
-		colorstring.Color("[yellow]"+*service.ServiceName),
+	colorstring.Printf(
+		"%-15s [yellow]%-60s[reset] %-8s running %d/%d  (%s)\n",
+		serviceStatus(service), *service.ServiceName,
 		*service.Status, *service.RunningCount, *service.DesiredCount,
 		shortTaskDefinitionName(*service.TaskDefinition),
 	)

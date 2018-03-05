@@ -7,10 +7,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var servicesCluster string
-var servicesFilter string
-var printAll bool
-var longOutput bool
+var (
+	servicesCluster string
+	servicesFilter  string
+	printAll        bool
+	longOutput      bool
+)
+
 var servicesCmd = &cobra.Command{
 	Use:   "services",
 	Short: "List unhealthy services in your ECS clusters",
@@ -21,9 +24,9 @@ func init() {
 	rootCmd.AddCommand(servicesCmd)
 
 	servicesCmd.Flags().StringVarP(&servicesFilter, "filter", "f", "", "Filter by the name of the ECS cluster")
-	servicesCmd.Flags().StringVar(&servicesCluster, "cluster", "", "Filter by the name of the ECS cluster")
-	servicesCmd.Flags().BoolVarP(&printAll, "all", "a", false, "Filter by the name of the ECS cluster")
-	servicesCmd.Flags().BoolVarP(&longOutput, "long", "l", false, "Filter by the name of the ECS cluster")
+	servicesCmd.Flags().StringVar(&servicesCluster, "cluster", "", "Select the ECS cluster to monitor")
+	servicesCmd.Flags().BoolVarP(&printAll, "all", "a", false, "Print all services, ignoring their status")
+	servicesCmd.Flags().BoolVarP(&longOutput, "long", "l", false, "Enable detailed output of containers parameters")
 }
 
 func runCommandServices(cmd *cobra.Command, args []string) {
