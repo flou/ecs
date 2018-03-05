@@ -1,41 +1,58 @@
 # ECS tools
 
+[![Travis](https://img.shields.io/travis/flou/ecs.svg)](flou/ecs)
 [![Go Report Card](https://goreportcard.com/badge/github.com/flou/ecs)](https://goreportcard.com/report/github.com/flou/ecs)
 
 ## Installation
 
+On MacOS:
+
 ```
-go get -u github.com/flou/ecs
+$ curl -LO https://github.com/flou/ecs/releases/download/$(curl -s https://api.github.com/repos/flou/ecs/releases/latest | grep tag_name | cut -d '"' -f 4)/ecs_darwin_amd64
+$ chmod +x ecs_darwin_amd64
+$ sudo mv ecs_darwin_amd64 /usr/local/bin/ecs
+```
+
+On Linux:
+
+```
+$ curl -LO https://github.com/flou/ecs/releases/download/$(curl -s https://api.github.com/repos/flou/ecs/releases/latest | grep tag_name | cut -d '"' -f 4)/ecs_linux_amd64
+$ chmod +x ecs_linux_amd64
+$ sudo mv ecs_linux_amd64 /usr/local/bin/ecs
+```
+
+Or, if you have a working Go environment:
+
+```
+$ go get -u github.com/flou/ecs
 ```
 
 ### Usage
 
 ```
-usage: ecs [<flags>] <command> [<args> ...]
+Command line tools to interact with your ECS clusters
 
-ECS Tools
+Usage:
+  ecs [command]
+
+Available Commands:
+  help        Help about any command
+  image       Print the Docker image of a service running in ECS
+  instances   List container instances in your ECS clusters
+  scale       Scale the service to a specific DesiredCount
+  services    List unhealthy services in your ECS clusters
 
 Flags:
-      --help           Show context-sensitive help (also try --help-long and --help-man).
-  -r, --region=REGION  AWS Region
+  -h, --help            help for ecs
+      --region string   AWS region
+      --version         version for ecs
 
-Commands:
-  help [<command>...]
-    Show help.
-
-  monitor [<flags>]
-    List unhealthy services in your ECS clusters
-
-  scale --cluster=CLUSTER --service=SERVICE --count=COUNT
-    Scale the service to a specific DesiredCount
-
-  image --cluster=CLUSTER --service=SERVICE
-    Return the Docker image of a service running in ECS
+Use "ecs [command] --help" for more information about a command.
 ```
 
-## Monitor
+## List running ECS services
 
-ECS monitor lists unhealthy services in your ECS clusters
+ECS services lists unhealthy services in your ECS clusters
 
 The script will list the clusters and fetch details about services that are
 running in it.
@@ -52,23 +69,26 @@ Then it determines if the service is healthy or not:
 ### Usage
 
 ```
-usage: ecs monitor [<flags>]
-
 List unhealthy services in your ECS clusters
 
+Usage:
+  ecs services [flags]
+
 Flags:
-      --help             Show context-sensitive help (also try --help-long and --help-man).
-  -r, --region=REGION    AWS Region
-      --cluster=CLUSTER  Select the ECS cluster to monitor
-  -f, --filter=FILTER    Filter by the name of the ECS cluster
+  -a, --all              Print all services, ignoring their status
+      --cluster string   Select the ECS cluster to monitor
+  -f, --filter string    Filter by the name of the ECS cluster
+  -h, --help             help for services
   -l, --long             Enable detailed output of containers parameters
-  -a, --all              Enable detailed output of containers parameters
+
+Global Flags:
+      --region string   AWS region
 ```
 
 List unhealthy services in all ECS clusters:
 
 ```
-$ ecs monitor
+$ ecs services
 --- CLUSTER: ecs-mycluster-dev (listing 4/9 services)
 [KO]   tools-hound-dev-1                                   ACTIVE   running 0/1  (hound-dev:75)
 [WARN] tools-jenkins-dev-1                                 ACTIVE   running 0/0  (jenkins-dev:247)
@@ -79,12 +99,12 @@ $ ecs monitor
 [WARN] tools-jenkins-prod-1                                 ACTIVE   running 0/0  (jenkins-prod:142)
 ```
 
-By default `ecs monitor` only shows services that are `KO` or `WARN`, use the `-a/--all` option to list all services. Also if all services in a cluster are `OK`, all services are shown.
+By default `ecs services` only shows services that are `KO` or `WARN`, use the `-a/--all` option to list all services. Also if all services in a cluster are `OK`, all services are shown.
 
 List unhealthy services in a specific ECS cluster:
 
 ```
-$ ecs monitor --cluster ecs-mycluster-prod
+$ ecs services --cluster ecs-mycluster-prod
 --- CLUSTER: ecs-mycluster-prod (listing 1/12 services)
 [WARN] tools-jenkins-prod-1                                 ACTIVE   running 0/0  (jenkins-prod:247)
 ```
@@ -92,7 +112,7 @@ $ ecs monitor --cluster ecs-mycluster-prod
 You can also get more information by using the -l/--long option:
 
 ```
-$ ecs monitor --long --filter prod
+$ ecs services --long --filter prod
 --- CLUSTER: ecs-mycluster-prod (listing 1/12 services)
 [WARN] tools-jenkins-prod-1                                 ACTIVE   running 0/0  (jenkins-prod:142
 - Container: jenkins
@@ -107,17 +127,20 @@ $ ecs monitor --long --filter prod
    - PROJECT: acme
 ```
 
-## List instances in ECS clusters
+## List container instances in ECS clusters
 
 ```
-usage: ecs instances [<flags>]
-
 List container instances in your ECS clusters
 
+Usage:
+  ecs instances [flags]
+
 Flags:
-      --help           Show context-sensitive help (also try --help-long and --help-man).
-  -r, --region=REGION  AWS Region
-  -f, --filter=FILTER  Filter by the name of the ECS cluster
+  -f, --filter string   Filter by the name of the ECS cluster
+  -h, --help            help for instances
+
+Global Flags:
+      --region string   AWS region
 ```
 
 Example:
@@ -136,23 +159,43 @@ i-0c75cf9cee1cb5d9e   ACTIVE       6       384     3712      4352    11696      
 i-0c61781827ef44a52   ACTIVE       2       128     3968      1536    14512     10.0.104.249    m4.xlarge  true   ami-0693ed7f  asg-ecs-mycluster-prod
 ```
 
-## Scale
+## Scale an ECS service
 
 ```
-usage: ecs scale --cluster=CLUSTER --service=SERVICE --count=COUNT
-
 Scale the service to a specific DesiredCount
 
+Usage:
+  ecs scale [flags]
+
 Flags:
-      --help             Show context-sensitive help (also try --help-long and --help-man).
-  -r, --region=REGION    AWS Region
-      --cluster=CLUSTER  Name of the ECS cluster
-      --service=SERVICE  Name of the service
-      --count=COUNT      New DesiredCount
+      --cluster string   Name of the ECS cluster
+      --count int        New DesiredCount
+  -h, --help             help for scale
+      --service string   Name of the ECS service
+
+Global Flags:
+      --region string   AWS region
 ```
 
 Example:
 
 ```
 ecs scale --cluster ecs-mycluster-prod --service tools-jenkins-prod-1 --count 0
+```
+
+## Find the images in an ECS service
+
+```
+Print the Docker image of a service running in ECS
+
+Usage:
+  ecs image [flags]
+
+Flags:
+      --cluster string   Name of the ECS cluster
+  -h, --help             help for image
+      --service string   Name of the ECS service
+
+Global Flags:
+      --region string   AWS region
 ```
