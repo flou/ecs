@@ -1,6 +1,6 @@
 # ECS tools
 
-[![Travis](https://img.shields.io/travis/flou/ecs.svg)](https://github.com/flou/ecs)
+[![Travis](https://img.shields.io/travis/flou/ecs.svg)](https://travis-ci.org/flou/ecs)
 [![Go Report Card](https://goreportcard.com/badge/github.com/flou/ecs)](https://goreportcard.com/report/github.com/flou/ecs)
 
 ## Installation
