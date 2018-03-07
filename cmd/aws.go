@@ -93,19 +93,25 @@ func describeClusters(client *ecs.ECS, clusters []string) []ecs.Cluster {
 }
 
 // List and describe services running in the ECS cluster
-func listServices(client *ecs.ECS, cluster string) []ecs.Service {
+func listServices(client *ecs.ECS, clusterName, serviceFilter string) []ecs.Service {
 	ecsServices := []ecs.Service{}
 	serviceNames := []string{}
-	req := client.ListServicesRequest(&ecs.ListServicesInput{Cluster: &cluster})
+	req := client.ListServicesRequest(&ecs.ListServicesInput{Cluster: &clusterName})
 	pager := req.Paginate()
 	for pager.Next() {
 		page := pager.CurrentPage()
 		serviceNames = append(serviceNames, page.ServiceArns...)
 	}
-	sort.Strings(serviceNames)
-	for _, services := range chunk(serviceNames, 10) {
+	filteredServicesNames := []string{}
+	for _, service := range serviceNames {
+		if strings.Contains(service, serviceFilter) {
+			filteredServicesNames = append(filteredServicesNames, service)
+		}
+	}
+	sort.Strings(filteredServicesNames)
+	for _, services := range chunk(filteredServicesNames, 10) {
 		if len(services) > 0 {
-			descServices := describeServices(client, cluster, services)
+			descServices := describeServices(client, clusterName, services)
 			ecsServices = append(ecsServices, descServices...)
 		}
 	}
@@ -113,8 +119,8 @@ func listServices(client *ecs.ECS, cluster string) []ecs.Service {
 }
 
 // Describe a list of services running in the ECS cluster
-func describeServices(client *ecs.ECS, cluster string, services []string) []ecs.Service {
-	params := ecs.DescribeServicesInput{Cluster: &cluster, Services: services}
+func describeServices(client *ecs.ECS, clusterName string, services []string) []ecs.Service {
+	params := ecs.DescribeServicesInput{Cluster: &clusterName, Services: services}
 	resp, err := client.DescribeServicesRequest(&params).Send()
 	if err != nil {
 		fmt.Println("Failed to describe services: " + err.Error())
