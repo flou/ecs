@@ -80,6 +80,7 @@ Flags:
   -f, --filter string    Filter by the name of the ECS cluster
   -h, --help             help for services
   -l, --long             Enable detailed output of containers parameters
+  -s, --service string   Filter by the name of the ECS service
 
 Global Flags:
       --region string   AWS region
@@ -90,14 +91,15 @@ List unhealthy services in all ECS clusters:
 ```
 $ ecs services
 --- CLUSTER: ecs-mycluster-dev (listing 4/9 services)
-[KO]   tools-hound-dev-1                                   ACTIVE   running 0/1  (hound-dev:75)
-[WARN] tools-jenkins-dev-1                                 ACTIVE   running 0/0  (jenkins-dev:247)
-[WARN] tools-kibana-dev-1                                  ACTIVE   running 0/0  (srv-kibana:55)
-[KO]   tools-sonar-dev-1                                   ACTIVE   running 2/1  (srv-sonar:923)
+[KO]   tools-hound-dev-1                                    ACTIVE   running 0/1  (hound-dev:75)
+[WARN] tools-jenkins-dev-1                                  ACTIVE   running 0/0  (jenkins-dev:247)
+[WARN] tools-kibana-dev-1                                   ACTIVE   running 0/0  (srv-kibana:55)
+[KO]   tools-sonar-dev-1                                    ACTIVE   running 2/1  (srv-sonar:923)
 
 --- CLUSTER: ecs-mycluster-prod (listing 1/12 services)
 [WARN] tools-jenkins-prod-1                                 ACTIVE   running 0/0  (jenkins-prod:142)
 ```
+
 
 By default `ecs services` only shows services that are `KO` or `WARN`, use the `-a/--all` option to list all services. Also if all services in a cluster are `OK`, all services are shown.
 
@@ -114,7 +116,7 @@ You can also get more information by using the -l/--long option:
 ```
 $ ecs services --long --filter prod
 --- CLUSTER: ecs-mycluster-prod (listing 1/12 services)
-[WARN] tools-jenkins-prod-1                                 ACTIVE   running 0/0  (jenkins-prod:142
+[WARN] tools-jenkins-prod-1                                 ACTIVE   running 0/0  (jenkins-prod:142)
 - Container: jenkins
   Image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/acme/jenkins:2.77-custom
   Memory: 1024 / CPU: 512
@@ -126,6 +128,20 @@ $ ecs services --long --filter prod
    - PLATFORM: prod
    - PROJECT: acme
 ```
+
+You can also choose to filter the services listed by their name:
+
+```
+$ ecs services -s jenkins
+--- CLUSTER: ecs-mycluster-dev (listing 1/9 services)
+[WARN] tools-jenkins-dev-1                                  ACTIVE   running 0/0  (jenkins-dev:247)
+
+--- CLUSTER: ecs-mycluster-prod (listing 1/12 services)
+[WARN] tools-jenkins-prod-1                                 ACTIVE   running 0/0  (jenkins-prod:142)
+```
+
+Also, you can combine the flags `-s` and `-f` to filter down a specific service
+and check its health across a restricted set of clusters.
 
 ## List container instances in ECS clusters
 
