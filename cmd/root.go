@@ -8,13 +8,14 @@ import (
 )
 
 var awsRegion string
+var version = "0.0.6"
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:     "ecs",
 	Short:   "ECS Tools",
 	Long:    "Command line tools to interact with your ECS clusters",
-	Version: "0.0.5",
+	Version: version,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
