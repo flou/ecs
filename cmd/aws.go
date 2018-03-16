@@ -221,6 +221,15 @@ func printServiceDetails(client *ecs.ECS, service *ecs.Service, longOutput bool)
 			fmt.Printf("  Image: %s\n", *container.Image)
 			fmt.Printf("  Memory: %d / CPU: %d\n", *container.Memory, *container.Cpu)
 			fmt.Printf("  Ports: %s\n", strings.Join(portsString, " "))
+			fmt.Printf("  Logs: %s", container.LogConfiguration.LogDriver)
+			switch container.LogConfiguration.LogDriver {
+			case "awslogs":
+				fmt.Printf(" (%s)\n" , container.LogConfiguration.Options["awslogs-group"])
+			case "fluentd":
+				fmt.Printf(" (tag: %s)\n" , container.LogConfiguration.Options["tag"])
+			default:
+				fmt.Printf("\n")
+			}
 			fmt.Println("  Environment:")
 			for _, env := range container.Environment {
 				fmt.Printf("   - %s: %s\n", *env.Name, *env.Value)
