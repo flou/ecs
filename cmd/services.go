@@ -24,9 +24,8 @@ var servicesCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(servicesCmd)
 
-	servicesCmd.Flags().StringVarP(&servicesClusterFilter, "filter", "f", "", "Filter by the name of the ECS cluster")
+	servicesCmd.Flags().StringVarP(&servicesClusterFilter, "cluster", "c", "", "Filter by the name of the ECS cluster")
 	servicesCmd.Flags().StringVarP(&servicesServiceFilter, "service", "s", "", "Filter by the name of the ECS service")
-	servicesCmd.Flags().StringVar(&servicesClusterName, "cluster", "", "Select the ECS cluster to monitor")
 	servicesCmd.Flags().BoolVarP(&printAll, "all", "a", false, "Print all services, ignoring their status")
 	servicesCmd.Flags().BoolVarP(&longOutput, "long", "l", false, "Enable detailed output of containers parameters")
 }
