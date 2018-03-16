@@ -224,9 +224,9 @@ func printServiceDetails(client *ecs.ECS, service *ecs.Service, longOutput bool)
 			fmt.Printf("  Logs: %s", container.LogConfiguration.LogDriver)
 			switch container.LogConfiguration.LogDriver {
 			case "awslogs":
-				fmt.Printf(" (%s)\n" , container.LogConfiguration.Options["awslogs-group"])
+				fmt.Printf(" (%s)\n", container.LogConfiguration.Options["awslogs-group"])
 			case "fluentd":
-				fmt.Printf(" (tag: %s)\n" , container.LogConfiguration.Options["tag"])
+				fmt.Printf(" (tag: %s)\n", container.LogConfiguration.Options["tag"])
 			default:
 				fmt.Printf("\n")
 			}
