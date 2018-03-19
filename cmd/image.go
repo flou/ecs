@@ -34,7 +34,7 @@ func runCommandImage(cmd *cobra.Command, args []string) {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	taskDefinition := serviceTaskDefinition(client, &ecsService)
+	taskDefinition := serviceTaskDefinition(client, *ecsService.TaskDefinition)
 	for _, container := range taskDefinition.ContainerDefinitions {
 		fmt.Println(*container.Image)
 	}

@@ -143,6 +143,135 @@ func findService(client *ecs.ECS, cluster, service string) (ecs.Service, error) 
 	return runningServices[0], nil
 }
 
+type byTaskName []ecs.Task
+
+func (c byTaskName) Len() int           { return len(c) }
+func (c byTaskName) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
+func (c byTaskName) Less(i, j int) bool { return *c[i].TaskDefinitionArn < *c[j].TaskDefinitionArn }
+
+func listTasks(client *ecs.ECS, clusterName, taskFilter string) []ecs.Task {
+	req := client.ListTasksRequest(&ecs.ListTasksInput{Cluster: &clusterName})
+	p := req.Paginate()
+
+	taskNames := make([]string, 0)
+	for p.Next() {
+		page := p.CurrentPage()
+		taskNames = append(taskNames, page.TaskArns...)
+	}
+
+	ecsTasks := make([]ecs.Task, 0)
+	for _, tasks := range chunk(taskNames, 100) {
+		if len(tasks) > 0 {
+			for _, t := range describeTasks(client, clusterName, tasks) {
+				if strings.Contains(*t.TaskDefinitionArn, taskFilter) {
+					ecsTasks = append(ecsTasks, t)
+				}
+			}
+		}
+	}
+	sort.Sort(byTaskName(ecsTasks))
+	return ecsTasks
+}
+
+func describeTasks(client *ecs.ECS, clusterName string, tasks []string) []ecs.Task {
+	params := ecs.DescribeTasksInput{Cluster: &clusterName, Tasks: tasks}
+	resp, err := client.DescribeTasksRequest(&params).Send()
+	if err != nil {
+		fmt.Println("Failed to describe services: " + err.Error())
+		os.Exit(1)
+	}
+	return resp.Tasks
+}
+
+func printTaskDetails(client *ecs.ECS, task *ecs.Task) {
+	fmt.Printf(
+		"%-60s  %-10s", shortTaskDefinitionName(*task.TaskDefinitionArn), *task.LastStatus,
+	)
+	if task.Cpu != nil {
+		fmt.Printf("  Cpu: %4s", *task.Cpu)
+	}
+	if task.Memory != nil {
+		fmt.Printf("  Memory: %4s", *task.Memory)
+	}
+	fmt.Println()
+	if tasksLongOutput == true {
+		taskDefinition := serviceTaskDefinition(client, *task.TaskDefinitionArn)
+		for _, container := range taskDefinition.ContainerDefinitions {
+			colorstring.Printf("- Container: [green]%s\n", *container.Name)
+			fmt.Printf("  Image: %s\n", *container.Image)
+			fmt.Printf("  Memory: %d / CPU: %d\n", *container.Memory, *container.Cpu)
+			if len(container.PortMappings) > 0 {
+				fmt.Println("  Ports:")
+				for _, port := range container.PortMappings {
+					fmt.Printf(
+						"   - Host:%d -> Container:%d\n",
+						*port.HostPort, *port.ContainerPort,
+					)
+				}
+			}
+			if len(container.Environment) > 0 {
+				fmt.Println("  Environment:")
+				for _, env := range container.Environment {
+					fmt.Printf("   - %s: %s\n", *env.Name, *env.Value)
+				}
+			}
+			if len(container.Links) > 0 {
+				fmt.Printf("  Links: %s\n", strings.Join(container.Links, ","))
+			}
+			if container.LogConfiguration != nil {
+				fmt.Printf("  Logs: %s", container.LogConfiguration.LogDriver)
+				switch container.LogConfiguration.LogDriver {
+				case "awslogs":
+					fmt.Printf(" (%s)\n", container.LogConfiguration.Options["awslogs-group"])
+				case "fluentd":
+					fmt.Printf(" (tag: %s)\n", container.LogConfiguration.Options["tag"])
+				default:
+					fmt.Printf("\n")
+				}
+			}
+		}
+		fmt.Println()
+	}
+}
+
+func detailedInstanceOutput(containerInstance *ecs.ContainerInstance) {
+	var line string
+	instanceAttributes := make([]string, 0)
+	capabilities := make([]string, 0)
+	for _, attr := range containerInstance.Attributes {
+		if strings.Contains(*attr.Name, "ecs.capability.") {
+			capability := strings.SplitAfter(*attr.Name, "ecs.capability.")[1]
+			if strings.HasPrefix(capability, "docker-remote-api.") {
+				continue
+			}
+			if attr.Value == nil {
+				line = fmt.Sprintf(" - %s", capability)
+			} else {
+				line = fmt.Sprintf(" - %-22s %s", capability, colorstring.Color("[yellow]"+*attr.Value))
+			}
+			capabilities = append(capabilities, line)
+		} else {
+			if attr.Value == nil {
+			} else {
+				line = fmt.Sprintf(" - %s", *attr.Name)
+				line = fmt.Sprintf(" - %-22s %s", *attr.Name, colorstring.Color("[yellow]"+*attr.Value))
+			}
+			instanceAttributes = append(instanceAttributes, line)
+		}
+	}
+	fmt.Println("Attributes:")
+	sort.Strings(instanceAttributes)
+	for _, attr := range instanceAttributes {
+		fmt.Println(attr)
+	}
+	fmt.Println("Capabilities:")
+	sort.Strings(capabilities)
+	for _, attr := range capabilities {
+		fmt.Println(attr)
+	}
+	fmt.Println()
+}
+
 // Split a list of strings into a list of smaller lists containing up to `count` items
 func chunk(list []string, count int) [][]string {
 	newList := make([][]string, len(list)/count+1)
@@ -192,9 +321,9 @@ func serviceOk(service *ecs.Service) bool {
 	return strings.Contains(status, "OK")
 }
 
-func serviceTaskDefinition(client *ecs.ECS, service *ecs.Service) ecs.TaskDefinition {
+func serviceTaskDefinition(client *ecs.ECS, taskDefinition string) ecs.TaskDefinition {
 	resp, err := client.DescribeTaskDefinitionRequest(
-		&ecs.DescribeTaskDefinitionInput{TaskDefinition: service.TaskDefinition}).Send()
+		&ecs.DescribeTaskDefinitionInput{TaskDefinition: &taskDefinition}).Send()
 	if err != nil {
 		fmt.Println("Failed to describe task definition: " + err.Error())
 		os.Exit(1)
@@ -210,7 +339,7 @@ func printServiceDetails(client *ecs.ECS, service *ecs.Service, longOutput bool)
 		shortTaskDefinitionName(*service.TaskDefinition),
 	)
 	if longOutput == true {
-		taskDefinition := serviceTaskDefinition(client, service)
+		taskDefinition := serviceTaskDefinition(client, *service.TaskDefinition)
 		fmt.Println(linkToConsole(service, clusterNameFromArn(*service.ClusterArn)))
 		for _, container := range taskDefinition.ContainerDefinitions {
 			portsString := []string{}
@@ -221,14 +350,16 @@ func printServiceDetails(client *ecs.ECS, service *ecs.Service, longOutput bool)
 			fmt.Printf("  Image: %s\n", *container.Image)
 			fmt.Printf("  Memory: %d / CPU: %d\n", *container.Memory, *container.Cpu)
 			fmt.Printf("  Ports: %s\n", strings.Join(portsString, " "))
-			fmt.Printf("  Logs: %s", container.LogConfiguration.LogDriver)
-			switch container.LogConfiguration.LogDriver {
-			case "awslogs":
-				fmt.Printf(" (%s)\n", container.LogConfiguration.Options["awslogs-group"])
-			case "fluentd":
-				fmt.Printf(" (tag: %s)\n", container.LogConfiguration.Options["tag"])
-			default:
-				fmt.Printf("\n")
+			if container.LogConfiguration != nil {
+				fmt.Printf("  Logs: %s", container.LogConfiguration.LogDriver)
+				switch container.LogConfiguration.LogDriver {
+				case "awslogs":
+					fmt.Printf(" (%s)\n", container.LogConfiguration.Options["awslogs-group"])
+				case "fluentd":
+					fmt.Printf(" (tag: %s)\n", container.LogConfiguration.Options["tag"])
+				default:
+					fmt.Printf("\n")
+				}
 			}
 			fmt.Println("  Environment:")
 			for _, env := range container.Environment {

@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -45,7 +44,6 @@ func runCommandInstances(cmd *cobra.Command, args []string) {
 
 	clusterNames := listClusters(client, instancesFilter)
 	for _, cluster := range describeClusters(client, clusterNames) {
-		var containerInstanceIds []string
 		listContainerResp, err := client.ListContainerInstancesRequest(
 			&ecs.ListContainerInstancesInput{Cluster: cluster.ClusterName}).Send()
 		if err != nil {
@@ -70,6 +68,7 @@ func runCommandInstances(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 
+		containerInstanceIds := make([]string, 0)
 		for _, cinst := range describeContainerInstancesResp.ContainerInstances {
 			containerInstanceIds = append(containerInstanceIds, *cinst.Ec2InstanceId)
 		}
@@ -116,42 +115,8 @@ func runCommandInstances(cmd *cobra.Command, args []string) {
 				instance.IPAddress, instanceType, agentVersion, instance.ImageID,
 				dockerVersion, ageInDays, instance.Name,
 			)
-			instanceAttributes := []string{}
-			capabilities := []string{}
-			var line string
 			if instancesLongOutput == true {
-				for _, attr := range cinst.Attributes {
-					if strings.Contains(*attr.Name, "ecs.capability.") {
-						capability := strings.SplitAfter(*attr.Name, "ecs.capability.")[1]
-						if strings.HasPrefix(capability, "docker-remote-api.") {
-							continue
-						}
-						if attr.Value == nil {
-							line = fmt.Sprintf(" - %s", capability)
-						} else {
-							line = fmt.Sprintf(" - %-22s %s", capability, colorstring.Color("[yellow]"+*attr.Value))
-						}
-						capabilities = append(capabilities, line)
-					} else {
-						if attr.Value == nil {
-						} else {
-							line = fmt.Sprintf(" - %s", *attr.Name)
-							line = fmt.Sprintf(" - %-22s %s", *attr.Name, colorstring.Color("[yellow]"+*attr.Value))
-						}
-						instanceAttributes = append(instanceAttributes, line)
-					}
-				}
-				fmt.Println("Attributes:")
-				sort.Strings(instanceAttributes)
-				for _, attr := range instanceAttributes {
-					fmt.Println(attr)
-				}
-				fmt.Println("Capabilities:")
-				sort.Strings(capabilities)
-				for _, attr := range capabilities {
-					fmt.Println(attr)
-				}
-				fmt.Println()
+				detailedInstanceOutput(&cinst)
 			}
 		}
 		fmt.Println()
