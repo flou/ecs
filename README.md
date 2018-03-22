@@ -39,8 +39,9 @@ Available Commands:
   help        Help about any command
   image       Print the Docker image of a service running in ECS
   instances   List container instances in your ECS clusters
-  scale       Scale the service to a specific DesiredCount
-  services    List unhealthy services in your ECS clusters
+  services    List services in your ECS clusters
+  tasks       List tasks running in your ECS clusters
+  update      Update the service to a specific DesiredCount
 
 Flags:
   -h, --help            help for ecs
@@ -69,15 +70,14 @@ Then it determines if the service is healthy or not:
 ### Usage
 
 ```
-List unhealthy services in your ECS clusters
+List services in your ECS clusters
 
 Usage:
   ecs services [flags]
 
 Flags:
   -a, --all              Print all services, ignoring their status
-      --cluster string   Select the ECS cluster to monitor
-  -f, --filter string    Filter by the name of the ECS cluster
+  -c, --cluster string   Filter by the name of the ECS cluster
   -h, --help             help for services
   -l, --long             Enable detailed output of containers parameters
   -s, --service string   Filter by the name of the ECS service
@@ -114,7 +114,7 @@ $ ecs services --cluster ecs-mycluster-prod
 You can also get more information by using the -l/--long option:
 
 ```
-$ ecs services --long --filter prod
+$ ecs services --long --cluster prod
 --- CLUSTER: ecs-mycluster-prod (listing 1/12 services)
 [WARN] tools-jenkins-prod-1                                 ACTIVE   running 0/0  (jenkins-prod:142)
 - Container: jenkins
@@ -140,7 +140,7 @@ $ ecs services -s jenkins
 [WARN] tools-jenkins-prod-1                                 ACTIVE   running 0/0  (jenkins-prod:142)
 ```
 
-Also, you can combine the flags `-s` and `-f` to filter down a specific service
+Also, you can combine the flags `-s` and `-c` to filter down a specific service
 and check its health across a restricted set of clusters.
 
 ## List container instances in ECS clusters
@@ -152,8 +152,9 @@ Usage:
   ecs instances [flags]
 
 Flags:
-  -f, --filter string   Filter by the name of the ECS cluster
-  -h, --help            help for instances
+  -c, --cluster string   Filter by the name of the ECS cluster
+  -h, --help             help for instances
+  -l, --long             Enable detailed output of containers instances
 
 Global Flags:
       --region string   AWS region
@@ -162,7 +163,7 @@ Global Flags:
 Example:
 
 ```
-$ ecs instances -f ecs-mycluster
+$ ecs instances -c ecs-mycluster
 --- CLUSTER: ecs-mycluster-dev (2 registered instances)
 INSTANCE ID           STATUS   TASKS  CPU/used CPU/free  MEM/used MEM/free       PRIVATE IP    INST.TYPE  AGENT  IMAGE         NAME
 i-0a2cc6d9443941234   ACTIVE       3       768     1280      1152     2800       10.0.98.85    t2.medium  true   ami-0693ed7f  asg-ecs-mycluster-dev
@@ -175,19 +176,20 @@ i-0c75cf9cee1cb5d9e   ACTIVE       6       384     3712      4352    11696      
 i-0c61781827ef44a52   ACTIVE       2       128     3968      1536    14512     10.0.104.249    m4.xlarge  true   ami-0693ed7f  asg-ecs-mycluster-prod
 ```
 
-## Scale an ECS service
+## Update an ECS service
 
 ```
-Scale the service to a specific DesiredCount
+Update the service to a specific DesiredCount
 
 Usage:
-  ecs scale [flags]
+  ecs update [flags]
 
 Flags:
-      --cluster string   Name of the ECS cluster
-      --count int        New DesiredCount
-  -h, --help             help for scale
-      --service string   Name of the ECS service
+  -c, --cluster string   Name of the ECS cluster
+      --count int        New DesiredCount (default -1)
+  -f, --force            Force a new deployment of the service
+  -h, --help             help for update
+  -s, --service string   Name of the ECS service
 
 Global Flags:
       --region string   AWS region
@@ -196,8 +198,27 @@ Global Flags:
 Example:
 
 ```
-ecs scale --cluster ecs-mycluster-prod --service tools-jenkins-prod-1 --count 0
+ecs update --cluster ecs-mycluster-prod --service tools-jenkins-prod-1 --count 0
 ```
+
+## List tasks running on ECS
+
+```
+List tasks running in your ECS clusters
+
+Usage:
+  ecs tasks [flags]
+
+Flags:
+  -c, --cluster string   Filter by the name of the ECS cluster
+  -h, --help             help for tasks
+  -l, --long             Enable detailed output of containers parameters
+  -s, --service string   Filter by the name of the ECS service
+
+Global Flags:
+      --region string   AWS region
+```
+
 
 ## Find the images in an ECS service
 

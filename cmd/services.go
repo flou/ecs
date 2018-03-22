@@ -17,7 +17,7 @@ var (
 
 var servicesCmd = &cobra.Command{
 	Use:   "services",
-	Short: "List unhealthy services in your ECS clusters",
+	Short: "List services in your ECS clusters",
 	Run:   runCommandServices,
 }
 

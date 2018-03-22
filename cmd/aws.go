@@ -69,7 +69,8 @@ func listClusters(client *ecs.ECS, filter string) []string {
 	if filter == "" {
 		clusterNames = listClusterOutput.ClusterArns
 	} else {
-		for _, cluster := range listClusterOutput.ClusterArns {
+		for _, clusterArn := range listClusterOutput.ClusterArns {
+			cluster := clusterNameFromArn(clusterArn)
 			if strings.Contains(strings.ToLower(cluster), strings.ToLower(filter)) {
 				clusterNames = append(clusterNames, cluster)
 			}
