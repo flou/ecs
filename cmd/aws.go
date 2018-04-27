@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -287,14 +286,20 @@ func chunk(list []string, count int) [][]string {
 	return newList
 }
 
+// func getAwsRegion() string {
+// }
+
 func loadAWSConfig(region string) aws.Config {
 	cfg, err := external.LoadDefaultAWSConfig()
 	if err != nil {
 		fmt.Println("Failed to load AWS SDK configuration, " + err.Error())
 		os.Exit(1)
 	}
+	defaultRegion := os.Getenv("AWS_DEFAULT_REGION")
 	if region != "" {
 		cfg.Region = region
+	} else if defaultRegion != "" {
+		awsRegion = defaultRegion
 	}
 	return cfg
 }
@@ -342,15 +347,19 @@ func printServiceDetails(client *ecs.ECS, service *ecs.Service, longOutput bool)
 	if longOutput == true {
 		taskDefinition := serviceTaskDefinition(client, *service.TaskDefinition)
 		fmt.Println(linkToConsole(service, clusterNameFromArn(*service.ClusterArn)))
+		if *taskDefinition.TaskRoleArn != "" {
+			fmt.Printf("IAM Role: %s\n", linkToIAM(shortTaskDefinitionName(*taskDefinition.TaskRoleArn)))
+		}
 		for _, container := range taskDefinition.ContainerDefinitions {
-			portsString := []string{}
-			for _, ports := range container.PortMappings {
-				portsString = append(portsString, "->"+strconv.FormatInt(*ports.ContainerPort, 10))
-			}
-			fmt.Printf("- Container: %s\n", *container.Name)
-			fmt.Printf("  Image: %s\n", *container.Image)
+			colorstring.Printf("- Container: [green]%s\n", *container.Name)
+			colorstring.Printf("  Image: [yellow]%s\n", *container.Image)
 			fmt.Printf("  Memory: %d / CPU: %d\n", *container.Memory, *container.Cpu)
-			fmt.Printf("  Ports: %s\n", strings.Join(portsString, " "))
+			if len(container.PortMappings) > 0 {
+				fmt.Println("  Ports:")
+				for _, port := range container.PortMappings {
+					fmt.Printf("   - Host:%d -> Container:%d\n", *port.HostPort, *port.ContainerPort)
+				}
+			}
 			if container.LogConfiguration != nil {
 				fmt.Printf("  Logs: %s", container.LogConfiguration.LogDriver)
 				switch container.LogConfiguration.LogDriver {
@@ -369,6 +378,10 @@ func printServiceDetails(client *ecs.ECS, service *ecs.Service, longOutput bool)
 		}
 		fmt.Println()
 	}
+}
+
+func linkToIAM(roleArn string) string {
+	return "https://console.aws.amazon.com/iam/home#/roles/" + roleArn
 }
 
 func linkToConsole(service *ecs.Service, cluster string) string {
