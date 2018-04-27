@@ -36,6 +36,7 @@ Usage:
   ecs [command]
 
 Available Commands:
+  events      List events running in your ECS clusters
   help        Help about any command
   image       Print the Docker image of a service running in ECS
   instances   List container instances in your ECS clusters
@@ -232,6 +233,23 @@ Flags:
       --cluster string   Name of the ECS cluster
   -h, --help             help for image
       --service string   Name of the ECS service
+
+Global Flags:
+      --region string   AWS region
+```
+
+## Display event log for services
+
+```
+List events for services running in your ECS clusters
+
+Usage:
+  ecs events [flags]
+
+Flags:
+  -c, --cluster string   Filter by the name of the ECS cluster
+  -h, --help             help for events
+  -s, --service string   Filter by the name of the ECS service
 
 Global Flags:
       --region string   AWS region

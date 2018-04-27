@@ -15,7 +15,7 @@ var (
 
 var eventsCmd = &cobra.Command{
 	Use:   "events",
-	Short: "List events running in your ECS clusters",
+	Short: "List events for services running in your ECS clusters",
 	Run:   runCommandEvents,
 }
 
