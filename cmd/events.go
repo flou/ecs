@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/spf13/cobra"
@@ -11,6 +12,7 @@ import (
 var (
 	eventsClusterFilter string
 	eventsServiceFilter string
+	eventsSkipSteady    bool
 )
 
 var eventsCmd = &cobra.Command{
@@ -24,6 +26,7 @@ func init() {
 
 	eventsCmd.Flags().StringVarP(&eventsClusterFilter, "cluster", "c", "", "Filter by the name of the ECS cluster")
 	eventsCmd.Flags().StringVarP(&eventsServiceFilter, "service", "s", "", "Filter by the name of the ECS service")
+	eventsCmd.Flags().BoolVar(&eventsSkipSteady, "skip-steady", false, "Don't display events that say the service is steady")
 }
 
 func runCommandEvents(cmd *cobra.Command, args []string) {
@@ -43,7 +46,9 @@ func runCommandEvents(cmd *cobra.Command, args []string) {
 	}
 	sort.Sort(byCreatedAt(events))
 	for _, event := range events {
-		fmt.Printf("%s: %s\n", *event.CreatedAt, *event.Message)
+		if !strings.Contains(*event.Message, "has reached a steady state.") || eventsSkipSteady == false {
+			fmt.Printf("%s: %s\n", *event.CreatedAt, *event.Message)
+		}
 	}
 }
 
