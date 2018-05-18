@@ -68,5 +68,5 @@ func runCommandUpdate(cmd *cobra.Command, args []string) {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	fmt.Printf("Service %s successfully updated: DesiredCount=%d\n", updateService, updateDesiredCount)
+	colorstring.Printf("Service [yellow]%s[reset] successfully updated: DesiredCount=%d\n", updateService, updateDesiredCount)
 }

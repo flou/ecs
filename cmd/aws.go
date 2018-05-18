@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -347,13 +348,23 @@ func printServiceDetails(client *ecs.ECS, service *ecs.Service, longOutput bool)
 	if longOutput == true {
 		taskDefinition := serviceTaskDefinition(client, *service.TaskDefinition)
 		fmt.Println(linkToConsole(service, clusterNameFromArn(*service.ClusterArn)))
-		if *taskDefinition.TaskRoleArn != "" {
+		if taskDefinition.TaskRoleArn != nil {
 			fmt.Printf("IAM Role: %s\n", linkToIAM(shortTaskDefinitionName(*taskDefinition.TaskRoleArn)))
 		}
 		for _, container := range taskDefinition.ContainerDefinitions {
 			colorstring.Printf("- Container: [green]%s\n", *container.Name)
 			colorstring.Printf("  Image: [yellow]%s\n", *container.Image)
-			fmt.Printf("  Memory: %d / CPU: %d\n", *container.Memory, *container.Cpu)
+			var (
+				containerMemory = "-"
+				containerCPU    = "-"
+			)
+			if container.Cpu != nil {
+				containerCPU = strconv.FormatInt(*container.Cpu, 10)
+			}
+			if container.Memory != nil {
+				containerMemory = strconv.FormatInt(*container.Memory, 10)
+			}
+			fmt.Printf("  Memory: %s / CPU: %s\n", containerMemory, containerCPU)
 			if len(container.PortMappings) > 0 {
 				fmt.Println("  Ports:")
 				for _, port := range container.PortMappings {
