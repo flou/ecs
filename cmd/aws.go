@@ -287,9 +287,6 @@ func chunk(list []string, count int) [][]string {
 	return newList
 }
 
-// func getAwsRegion() string {
-// }
-
 func loadAWSConfig(region string) aws.Config {
 	cfg, err := external.LoadDefaultAWSConfig()
 	if err != nil {
@@ -301,6 +298,7 @@ func loadAWSConfig(region string) aws.Config {
 		cfg.Region = region
 	} else if defaultRegion != "" {
 		awsRegion = defaultRegion
+		cfg.Region = defaultRegion
 	}
 	return cfg
 }
