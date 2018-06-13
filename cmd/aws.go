@@ -97,7 +97,13 @@ func describeClusters(client *ecs.ECS, clusters []string) []ecs.Cluster {
 func listServices(client *ecs.ECS, clusterName, serviceFilter string) []ecs.Service {
 	ecsServices := []ecs.Service{}
 	serviceNames := []string{}
-	req := client.ListServicesRequest(&ecs.ListServicesInput{Cluster: &clusterName})
+	listServicesInput := ecs.ListServicesInput{Cluster: &clusterName}
+	if strings.ToLower(servicesServiceType) == "fargate" {
+		listServicesInput.LaunchType = "FARGATE"
+	} else if strings.ToLower(servicesServiceType) == "ec2" {
+		listServicesInput.LaunchType = "EC2"
+	}
+	req := client.ListServicesRequest(&listServicesInput)
 	pager := req.Paginate()
 	for pager.Next() {
 		page := pager.CurrentPage()
@@ -338,16 +344,27 @@ func serviceTaskDefinition(client *ecs.ECS, taskDefinition string) ecs.TaskDefin
 
 func printServiceDetails(client *ecs.ECS, service *ecs.Service, longOutput bool) {
 	colorstring.Printf(
-		"%-15s [yellow]%-60s[reset] %-8s running %d/%d  (%s)\n",
+		"%-15s [yellow]%-60s[reset] %-7s %-8s running %d/%d  (%s)\n",
 		serviceStatus(service), *service.ServiceName,
-		*service.Status, *service.RunningCount, *service.DesiredCount,
-		shortTaskDefinitionName(*service.TaskDefinition),
+		service.LaunchType, *service.Status, *service.RunningCount,
+		*service.DesiredCount, shortTaskDefinitionName(*service.TaskDefinition),
 	)
 	if longOutput == true {
 		taskDefinition := serviceTaskDefinition(client, *service.TaskDefinition)
 		fmt.Println(linkToConsole(service, clusterNameFromArn(*service.ClusterArn)))
 		if taskDefinition.TaskRoleArn != nil {
 			fmt.Printf("IAM Role: %s\n", linkToIAM(shortTaskDefinitionName(*taskDefinition.TaskRoleArn)))
+		}
+		if service.NetworkConfiguration != nil {
+			if service.NetworkConfiguration.AwsvpcConfiguration != nil {
+				config := service.NetworkConfiguration.AwsvpcConfiguration
+				if len(config.SecurityGroups) > 0 {
+					fmt.Printf("Security Group: %s\n", config.SecurityGroups)
+				}
+				if len(config.Subnets) > 0 {
+					fmt.Printf("VPC Subnets: %s\n", config.Subnets)
+				}
+			}
 		}
 		for _, container := range taskDefinition.ContainerDefinitions {
 			colorstring.Printf("- Container: [green]%s\n", *container.Name)
@@ -370,19 +387,17 @@ func printServiceDetails(client *ecs.ECS, service *ecs.Service, longOutput bool)
 				}
 			}
 			if container.LogConfiguration != nil {
-				fmt.Printf("  Logs: %s", container.LogConfiguration.LogDriver)
-				switch container.LogConfiguration.LogDriver {
-				case "awslogs":
-					fmt.Printf(" (%s)\n", container.LogConfiguration.Options["awslogs-group"])
-				case "fluentd":
-					fmt.Printf(" (tag: %s)\n", container.LogConfiguration.Options["tag"])
-				default:
-					fmt.Printf("\n")
+				fmt.Println("  Logs:")
+				fmt.Printf("   - log-driver: %s\n", container.LogConfiguration.LogDriver)
+				for name, option := range container.LogConfiguration.Options {
+					fmt.Printf("   - %s: %s\n", name, option)
 				}
 			}
-			fmt.Println("  Environment:")
-			for _, env := range container.Environment {
-				fmt.Printf("   - %s: %s\n", *env.Name, *env.Value)
+			if len(container.Environment) > 0 {
+				fmt.Println("  Environment:")
+				for _, env := range container.Environment {
+					fmt.Printf("   - %s: %s\n", *env.Name, *env.Value)
+				}
 			}
 		}
 		fmt.Println()

@@ -11,6 +11,7 @@ var (
 	servicesClusterName   string
 	servicesClusterFilter string
 	servicesServiceFilter string
+	servicesServiceType   string
 	printAll              bool
 	longOutput            bool
 )
@@ -28,6 +29,7 @@ func init() {
 	servicesCmd.Flags().StringVarP(&servicesServiceFilter, "service", "s", "", "Filter by the name of the ECS service")
 	servicesCmd.Flags().BoolVarP(&printAll, "all", "a", false, "Print all services, ignoring their status")
 	servicesCmd.Flags().BoolVarP(&longOutput, "long", "l", false, "Enable detailed output of containers parameters")
+	servicesCmd.Flags().StringVarP(&servicesServiceType, "type", "t", "", "Filter by service launch type")
 }
 
 func runCommandServices(cmd *cobra.Command, args []string) {
