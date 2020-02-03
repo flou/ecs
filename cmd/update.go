@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -63,7 +64,7 @@ func runCommandUpdate(cmd *cobra.Command, args []string) {
 		params.DesiredCount = &updateDesiredCount
 	}
 
-	_, err = client.UpdateServiceRequest(&params).Send()
+	_, err = client.UpdateServiceRequest(&params).Send(context.Background())
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -45,7 +46,7 @@ func runCommandInstances(cmd *cobra.Command, args []string) {
 	clusterNames := listClusters(client, instancesFilter)
 	for _, cluster := range describeClusters(client, clusterNames) {
 		listContainerResp, err := client.ListContainerInstancesRequest(
-			&ecs.ListContainerInstancesInput{Cluster: cluster.ClusterName}).Send()
+			&ecs.ListContainerInstancesInput{Cluster: cluster.ClusterName}).Send(context.Background())
 		if err != nil {
 			fmt.Println("Failed to list container instances: " + err.Error())
 			os.Exit(1)
@@ -62,7 +63,7 @@ func runCommandInstances(cmd *cobra.Command, args []string) {
 			&ecs.DescribeContainerInstancesInput{
 				Cluster:            cluster.ClusterName,
 				ContainerInstances: listContainerResp.ContainerInstanceArns,
-			}).Send()
+			}).Send(context.Background())
 		if err != nil {
 			fmt.Println("Failed to describe container instances: " + err.Error())
 			os.Exit(1)
@@ -73,7 +74,7 @@ func runCommandInstances(cmd *cobra.Command, args []string) {
 			containerInstanceIds = append(containerInstanceIds, *cinst.Ec2InstanceId)
 		}
 		describeInstanceResp, err := ec2Client.DescribeInstancesRequest(
-			&ec2.DescribeInstancesInput{InstanceIds: containerInstanceIds}).Send()
+			&ec2.DescribeInstancesInput{InstanceIds: containerInstanceIds}).Send(context.Background())
 
 		if err != nil {
 			fmt.Println("Failed to describe EC2 instances: " + err.Error())

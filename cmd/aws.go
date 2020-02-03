@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -58,9 +59,9 @@ func clusterNameFromArn(clusterArn string) string {
 	return strings.Split(clusterArn, "/")[len(splitClusterArn)-1]
 }
 
-func listClusters(client *ecs.ECS, filter string) []string {
+func listClusters(client *ecs.Client, filter string) []string {
 	clusterNames := []string{}
-	listClusterOutput, err := client.ListClustersRequest(&ecs.ListClustersInput{}).Send()
+	listClusterOutput, err := client.ListClustersRequest(&ecs.ListClustersInput{}).Send(context.Background())
 	if err != nil {
 		fmt.Println("Failed to list clusters: " + err.Error())
 		os.Exit(1)
@@ -80,9 +81,9 @@ func listClusters(client *ecs.ECS, filter string) []string {
 	return clusterNames
 }
 
-func describeClusters(client *ecs.ECS, clusters []string) []ecs.Cluster {
+func describeClusters(client *ecs.Client, clusters []string) []ecs.Cluster {
 	descClusterReq := client.DescribeClustersRequest(&ecs.DescribeClustersInput{Clusters: clusters})
-	descClusterOutput, err := descClusterReq.Send()
+	descClusterOutput, err := descClusterReq.Send(context.Background())
 	if err != nil {
 		fmt.Println("Failed to describe clusters: " + err.Error())
 		os.Exit(1)
@@ -94,7 +95,7 @@ func describeClusters(client *ecs.ECS, clusters []string) []ecs.Cluster {
 }
 
 // List and describe services running in the ECS cluster
-func listServices(client *ecs.ECS, clusterName, serviceFilter string) []ecs.Service {
+func listServices(client *ecs.Client, clusterName, serviceFilter string) []ecs.Service {
 	ecsServices := []ecs.Service{}
 	serviceNames := []string{}
 	listServicesInput := ecs.ListServicesInput{Cluster: &clusterName}
@@ -104,8 +105,9 @@ func listServices(client *ecs.ECS, clusterName, serviceFilter string) []ecs.Serv
 		listServicesInput.LaunchType = "EC2"
 	}
 	req := client.ListServicesRequest(&listServicesInput)
-	pager := req.Paginate()
-	for pager.Next() {
+
+	pager := ecs.NewListServicesPaginator(req)
+	for pager.Next(context.Background()) {
 		page := pager.CurrentPage()
 		serviceNames = append(serviceNames, page.ServiceArns...)
 	}
@@ -126,9 +128,9 @@ func listServices(client *ecs.ECS, clusterName, serviceFilter string) []ecs.Serv
 }
 
 // Describe a list of services running in the ECS cluster
-func describeServices(client *ecs.ECS, clusterName string, services []string) []ecs.Service {
+func describeServices(client *ecs.Client, clusterName string, services []string) []ecs.Service {
 	params := ecs.DescribeServicesInput{Cluster: &clusterName, Services: services}
-	resp, err := client.DescribeServicesRequest(&params).Send()
+	resp, err := client.DescribeServicesRequest(&params).Send(context.Background())
 	if err != nil {
 		fmt.Println("Failed to describe services: " + err.Error())
 		os.Exit(1)
@@ -136,7 +138,7 @@ func describeServices(client *ecs.ECS, clusterName string, services []string) []
 	return resp.Services
 }
 
-func findService(client *ecs.ECS, cluster, service string) (ecs.Service, error) {
+func findService(client *ecs.Client, cluster, service string) (ecs.Service, error) {
 	var ecsService ecs.Service
 	runningServices := describeServices(client, cluster, []string{service})
 	if len(runningServices) == 0 {
@@ -156,12 +158,12 @@ func (c byTaskName) Len() int           { return len(c) }
 func (c byTaskName) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 func (c byTaskName) Less(i, j int) bool { return *c[i].TaskDefinitionArn < *c[j].TaskDefinitionArn }
 
-func listTasks(client *ecs.ECS, clusterName, taskFilter string) []ecs.Task {
+func listTasks(client *ecs.Client, clusterName, taskFilter string) []ecs.Task {
 	req := client.ListTasksRequest(&ecs.ListTasksInput{Cluster: &clusterName})
-	p := req.Paginate()
+	p := ecs.NewListTasksPaginator(req)
 
 	taskNames := make([]string, 0)
-	for p.Next() {
+	for p.Next(context.Background()) {
 		page := p.CurrentPage()
 		taskNames = append(taskNames, page.TaskArns...)
 	}
@@ -180,9 +182,9 @@ func listTasks(client *ecs.ECS, clusterName, taskFilter string) []ecs.Task {
 	return ecsTasks
 }
 
-func describeTasks(client *ecs.ECS, clusterName string, tasks []string) []ecs.Task {
+func describeTasks(client *ecs.Client, clusterName string, tasks []string) []ecs.Task {
 	params := ecs.DescribeTasksInput{Cluster: &clusterName, Tasks: tasks}
-	resp, err := client.DescribeTasksRequest(&params).Send()
+	resp, err := client.DescribeTasksRequest(&params).Send(context.Background())
 	if err != nil {
 		fmt.Println("Failed to describe services: " + err.Error())
 		os.Exit(1)
@@ -190,7 +192,7 @@ func describeTasks(client *ecs.ECS, clusterName string, tasks []string) []ecs.Ta
 	return resp.Tasks
 }
 
-func printTaskDetails(client *ecs.ECS, task *ecs.Task) {
+func printTaskDetails(client *ecs.Client, task *ecs.Task) {
 	fmt.Printf(
 		"%-60s  %-10s", shortTaskDefinitionName(*task.TaskDefinitionArn), *task.LastStatus,
 	)
@@ -332,9 +334,9 @@ func serviceOk(service *ecs.Service) bool {
 	return strings.Contains(status, "OK")
 }
 
-func serviceTaskDefinition(client *ecs.ECS, taskDefinition string) ecs.TaskDefinition {
+func serviceTaskDefinition(client *ecs.Client, taskDefinition string) ecs.TaskDefinition {
 	resp, err := client.DescribeTaskDefinitionRequest(
-		&ecs.DescribeTaskDefinitionInput{TaskDefinition: &taskDefinition}).Send()
+		&ecs.DescribeTaskDefinitionInput{TaskDefinition: &taskDefinition}).Send(context.Background())
 	if err != nil {
 		fmt.Println("Failed to describe task definition: " + err.Error())
 		os.Exit(1)
@@ -342,7 +344,7 @@ func serviceTaskDefinition(client *ecs.ECS, taskDefinition string) ecs.TaskDefin
 	return *resp.TaskDefinition
 }
 
-func printServiceDetails(client *ecs.ECS, service *ecs.Service, longOutput bool) {
+func printServiceDetails(client *ecs.Client, service *ecs.Service, longOutput bool) {
 	colorstring.Printf(
 		"%-15s [yellow]%-60s[reset] %-7s %-8s running %d/%d  (%s)\n",
 		serviceStatus(service), *service.ServiceName,
