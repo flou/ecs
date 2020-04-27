@@ -24,6 +24,7 @@ jobs:
 
     - name: Get dependencies
       run: |
+        cd ~/go/src/github.com/${GITHUB_REPOSITORY}
         go get -v -t -d ./...
         if [ -f Gopkg.toml ]; then
             curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
@@ -31,4 +32,6 @@ jobs:
         fi
 
     - name: Build
-      run: go build -v .
+      run: |
+        cd ~/go/src/github.com/${GITHUB_REPOSITORY}
+        go build -v . -ldflags="-w -s -X main.version={{.GIT_COMMIT}}"
