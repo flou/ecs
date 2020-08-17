@@ -4,8 +4,8 @@ matrix:
   include:
     - go: 1.x
       env: LATEST=true
-    - go: "1.9"
-    - go: "1.10"
+    - go: "1.14"
+    - go: "1.15"
 
 before_install:
   - go get github.com/mitchellh/gox
@@ -19,7 +19,7 @@ script:
   - go vet $(go list ./... | grep -v /vendor/)
   - go test -v -race ./...
   # Only build binaries from the latest Go release.
-  - if [ "${LATEST}" = "true" ]; then gox -os="linux darwin" -arch="amd64" -ldflags "-X main.Rev=`git rev-parse --short HEAD`" -verbose ./...; fi
+  - if [ "${LATEST}" = "true" ]; then gox -os="linux darwin" -arch="amd64" -ldflags "-X github.com/flou/ecs/cmd.revision=`git rev-parse --short HEAD`" -verbose ./...; fi
 
 deploy:
   provider: releases

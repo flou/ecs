@@ -101,19 +101,19 @@ func runCommandInstances(cmd *cobra.Command, args []string) {
 			if *cinst.AgentConnected == false {
 				agentVersion = colorstring.Color("[red]" + *cinst.VersionInfo.AgentVersion)
 			}
-			registeredCPU := *findResource(cinst.RegisteredResources, "CPU").IntegerValue
-			remainingCPU := *findResource(cinst.RemainingResources, "CPU").IntegerValue
-			registeredMemory := *findResource(cinst.RegisteredResources, "MEMORY").IntegerValue
-			remainingMemory := *findResource(cinst.RemainingResources, "MEMORY").IntegerValue
-			instanceType := *findAttribute(cinst.Attributes, "ecs.instance-type").Value
+			registeredCPU := findResource(cinst.RegisteredResources, "CPU").IntegerValue
+			remainingCPU := findResource(cinst.RemainingResources, "CPU").IntegerValue
+			registeredMemory := findResource(cinst.RegisteredResources, "MEMORY").IntegerValue
+			remainingMemory := findResource(cinst.RemainingResources, "MEMORY").IntegerValue
+			instanceType := findAttribute(cinst.Attributes, "ecs.instance-type").Value
 			dockerVersion := strings.TrimPrefix(*cinst.VersionInfo.DockerVersion, "DockerVersion: ")
 			ageInDays := fmt.Sprintf("%4.1f days", time.Since(*cinst.RegisteredAt).Hours()/24)
 			instance := instances[*cinst.Ec2InstanceId]
 			fmt.Printf(
 				"%-20s  %-8s %5d  %8d %8d  %8d %8d  %15s %12s  %-6v  %12s  %10s  %s  %s\n",
 				*cinst.Ec2InstanceId, *cinst.Status, *cinst.RunningTasksCount,
-				registeredCPU-remainingCPU, remainingCPU, registeredMemory-remainingMemory, remainingMemory,
-				instance.IPAddress, instanceType, agentVersion, instance.ImageID,
+				*registeredCPU-*remainingCPU, *remainingCPU, *registeredMemory-*remainingMemory, *remainingMemory,
+				instance.IPAddress, *instanceType, agentVersion, instance.ImageID,
 				dockerVersion, ageInDays, instance.Name,
 			)
 			if instancesLongOutput == true {
