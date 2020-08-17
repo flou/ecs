@@ -1,4 +1,4 @@
-name: Test and build binary
+name: build
 
 on:
   push:
