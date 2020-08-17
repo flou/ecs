@@ -8,7 +8,6 @@ import (
 )
 
 var (
-	servicesClusterName   string
 	servicesClusterFilter string
 	servicesServiceFilter string
 	servicesServiceType   string
@@ -36,10 +35,7 @@ func runCommandServices(cmd *cobra.Command, args []string) {
 	cfg := loadAWSConfig(awsRegion)
 	client := ecs.New(cfg)
 
-	clusterNames := []string{servicesClusterName}
-	if servicesClusterName == "" {
-		clusterNames = listClusters(client, servicesClusterFilter)
-	}
+	clusterNames := []string{}
 	for _, cluster := range describeClusters(client, clusterNames) {
 		services := listServices(client, *cluster.ClusterName, servicesServiceFilter)
 		headerLine := fmt.Sprintf(
