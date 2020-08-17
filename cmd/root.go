@@ -2,35 +2,69 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
+	"github.com/apex/log"
+	"github.com/apex/log/handlers/cli"
 	"github.com/spf13/cobra"
 )
 
-var awsRegion string
-var version = "0.0.8"
-var revision string
-
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
-	Use:     "ecs",
-	Short:   "ECS Tools",
-	Long:    "Command line tools to interact with your ECS clusters",
-	Version: fmt.Sprintf("%s (%s)", version, revision),
+func Execute(version string, exit func(int), args []string) {
+	log.SetHandler(cli.Default)
+	defer fmt.Println()
+	newRootCmd(version, exit).Execute(args)
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+func (cmd *rootCmd) Execute(args []string) {
+	cmd.cmd.SetArgs(args)
+
+	if err := cmd.cmd.Execute(); err != nil {
+		var code = 1
+		var msg = "command failed"
+		if eerr, ok := err.(*exitError); ok {
+			code = eerr.code
+			if eerr.details != "" {
+				msg = eerr.details
+			}
+		}
+		log.WithError(err).Error(msg)
+		cmd.exit(code)
 	}
 }
 
-func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-	rootCmd.PersistentFlags().StringVar(&awsRegion, "region", "", "AWS region")
+type rootCmd struct {
+	cmd   *cobra.Command
+	debug bool
+	exit  func(int)
+}
+
+func newRootCmd(version string, exit func(int)) *rootCmd {
+	var root = &rootCmd{
+		exit: exit,
+	}
+	var cmd = &cobra.Command{
+		Use:           "ecs",
+		Short:         "CLI tool to interact with your ECS clusters",
+		Version:       version,
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			if root.debug {
+				log.SetLevel(log.DebugLevel)
+				log.Debug("debug logs enabled")
+			}
+		},
+	}
+
+	cmd.PersistentFlags().BoolVar(&root.debug, "debug", false, "Enable debug mode")
+	cmd.AddCommand(
+		buildEventsCmd().cmd,
+		buildImagesCmd().cmd,
+		buildInstancesCmd().cmd,
+		buildServicesCmd().cmd,
+		buildTasksCmd().cmd,
+		buildUpdateCmd().cmd,
+	)
+
+	root.cmd = cmd
+	return root
 }

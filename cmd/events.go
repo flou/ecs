@@ -6,54 +6,63 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/flou/ecs/pkg/aws"
 	"github.com/spf13/cobra"
 )
 
-var (
-	eventsClusterFilter string
-	eventsServiceFilter string
-	eventsSkipSteady    bool
-)
-
-var eventsCmd = &cobra.Command{
-	Use:   "events",
-	Short: "List events for services running in your ECS clusters",
-	Run:   runCommandEvents,
+type eventsCmd struct {
+	cmd  *cobra.Command
+	opts eventsOpts
 }
 
-func init() {
-	rootCmd.AddCommand(eventsCmd)
-
-	eventsCmd.Flags().StringVarP(&eventsClusterFilter, "cluster", "c", "", "Filter by the name of the ECS cluster")
-	eventsCmd.Flags().StringVarP(&eventsServiceFilter, "service", "s", "", "Filter by the name of the ECS service")
-	eventsCmd.Flags().BoolVar(&eventsSkipSteady, "skip-steady", false, "Don't display events that say the service is steady")
+type eventsOpts struct {
+	region        string
+	clusterFilter string
+	serviceFilter string
+	serviceType   string
+	skipSteady    bool
 }
 
-func runCommandEvents(cmd *cobra.Command, args []string) {
-	var (
-		services []ecs.Service
-		events   []ecs.ServiceEvent
-	)
+func buildEventsCmd() *eventsCmd {
+	var root = &eventsCmd{}
+	var cmd = &cobra.Command{
+		Use:   "events",
+		Short: "List events for services running in your ECS clusters",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runCommandEvents(root.opts)
+		},
+	}
+	cmd.Flags().StringVarP(&root.opts.region, "region", "r", "", "AWS region name")
+	cmd.Flags().StringVarP(&root.opts.clusterFilter, "cluster", "c", "", "Filter by the name of the ECS cluster")
+	cmd.Flags().StringVarP(&root.opts.serviceFilter, "service", "s", "", "Filter by the name of the ECS service")
+	cmd.Flags().StringVarP(&root.opts.serviceType, "type", "t", "", "Filter by service launch type")
+	cmd.Flags().BoolVar(&root.opts.skipSteady, "skip-steady", false, "Don't display events that say the service is steady")
 
-	client := ecs.New(loadAWSConfig(awsRegion))
-	clusterNames := listClusters(client, eventsClusterFilter)
+	root.cmd = cmd
+	return root
+}
 
-	for _, cluster := range describeClusters(client, clusterNames) {
-		services = append(services, listServices(client, *cluster.ClusterName, eventsServiceFilter)...)
+func runCommandEvents(options eventsOpts) error {
+	var services []ecs.Service
+	var events []ecs.ServiceEvent
+
+	client := ecs.New(aws.LoadAWSConfig(options.region))
+	clusterNames := aws.ListClusters(client, options.clusterFilter)
+
+	for _, cluster := range aws.DescribeClusters(client, clusterNames) {
+		services = append(
+			services,
+			aws.ListServices(client, *cluster.ClusterName, options.serviceFilter, options.serviceType)...,
+		)
 	}
 	for _, svc := range services {
 		events = append(events, svc.Events...)
 	}
-	sort.Sort(byCreatedAt(events))
+	sort.Sort(aws.EventsByCreatedAt(events))
 	for _, event := range events {
-		if !strings.Contains(*event.Message, "has reached a steady state.") || eventsSkipSteady == false {
+		if !strings.Contains(*event.Message, "has reached a steady state.") || options.skipSteady == false {
 			fmt.Printf("%s: %s\n", *event.CreatedAt, *event.Message)
 		}
 	}
+	return nil
 }
-
-type byCreatedAt []ecs.ServiceEvent
-
-func (c byCreatedAt) Len() int           { return len(c) }
-func (c byCreatedAt) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
-func (c byCreatedAt) Less(i, j int) bool { return c[i].CreatedAt.Before(*c[j].CreatedAt) }

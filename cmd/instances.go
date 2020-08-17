@@ -9,20 +9,20 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/flou/ecs/pkg/aws"
 	"github.com/mitchellh/colorstring"
 	"github.com/spf13/cobra"
 )
 
-const timeFormat = "2018-02-23 10:46:01 +0000 UTC"
+type instancesCmd struct {
+	cmd  *cobra.Command
+	opts instanceOpts
+}
 
-var (
-	instancesFilter     string
-	instancesLongOutput bool
-)
-var instancesCmd = &cobra.Command{
-	Use:   "instances",
-	Short: "List container instances in your ECS clusters",
-	Run:   runCommandInstances,
+type instanceOpts struct {
+	region        string
+	clusterFilter string
+	longOutput    bool
 }
 
 type eInstance struct {
@@ -31,20 +31,30 @@ type eInstance struct {
 	Name      string
 }
 
-func init() {
-	rootCmd.AddCommand(instancesCmd)
+func buildInstancesCmd() *instancesCmd {
+	var root = &instancesCmd{}
+	var cmd = &cobra.Command{
+		Use:   "instances",
+		Short: "List container instances in your ECS clusters",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runCommandInstances(root.opts)
+		},
+	}
+	cmd.Flags().StringVarP(&root.opts.region, "region", "r", "", "AWS region name")
+	cmd.Flags().StringVarP(&root.opts.clusterFilter, "cluster", "c", "", "Filter by the name of the ECS cluster")
+	cmd.Flags().BoolVarP(&root.opts.longOutput, "long", "l", false, "Enable detailed output of containers instances")
 
-	instancesCmd.Flags().StringVarP(&instancesFilter, "cluster", "c", "", "Filter by the name of the ECS cluster")
-	instancesCmd.Flags().BoolVarP(&instancesLongOutput, "long", "l", false, "Enable detailed output of containers instances")
+	root.cmd = cmd
+	return root
 }
 
-func runCommandInstances(cmd *cobra.Command, args []string) {
-	cfg := loadAWSConfig(awsRegion)
+func runCommandInstances(options instanceOpts) error {
+	cfg := aws.LoadAWSConfig(options.region)
 	client := ecs.New(cfg)
 	ec2Client := ec2.New(cfg)
 
-	clusterNames := listClusters(client, instancesFilter)
-	for _, cluster := range describeClusters(client, clusterNames) {
+	clusterNames := aws.ListClusters(client, options.clusterFilter)
+	for _, cluster := range aws.DescribeClusters(client, clusterNames) {
 		listContainerResp, err := client.ListContainerInstancesRequest(
 			&ecs.ListContainerInstancesInput{Cluster: cluster.ClusterName}).Send(context.Background())
 		if err != nil {
@@ -86,7 +96,7 @@ func runCommandInstances(cmd *cobra.Command, args []string) {
 				instances[*inst.InstanceId] = eInstance{
 					IPAddress: *inst.PrivateIpAddress,
 					ImageID:   *inst.ImageId,
-					Name:      *findTag(inst.Tags, "Name").Value,
+					Name:      *aws.FindTag(inst.Tags, "Name").Value,
 				}
 			}
 		}
@@ -101,11 +111,11 @@ func runCommandInstances(cmd *cobra.Command, args []string) {
 			if *cinst.AgentConnected == false {
 				agentVersion = colorstring.Color("[red]" + *cinst.VersionInfo.AgentVersion)
 			}
-			registeredCPU := findResource(cinst.RegisteredResources, "CPU").IntegerValue
-			remainingCPU := findResource(cinst.RemainingResources, "CPU").IntegerValue
-			registeredMemory := findResource(cinst.RegisteredResources, "MEMORY").IntegerValue
-			remainingMemory := findResource(cinst.RemainingResources, "MEMORY").IntegerValue
-			instanceType := findAttribute(cinst.Attributes, "ecs.instance-type").Value
+			registeredCPU := aws.FindResource(cinst.RegisteredResources, "CPU").IntegerValue
+			remainingCPU := aws.FindResource(cinst.RemainingResources, "CPU").IntegerValue
+			registeredMemory := aws.FindResource(cinst.RegisteredResources, "MEMORY").IntegerValue
+			remainingMemory := aws.FindResource(cinst.RemainingResources, "MEMORY").IntegerValue
+			instanceType := aws.FindAttribute(cinst.Attributes, "ecs.instance-type").Value
 			dockerVersion := strings.TrimPrefix(*cinst.VersionInfo.DockerVersion, "DockerVersion: ")
 			ageInDays := fmt.Sprintf("%4.1f days", time.Since(*cinst.RegisteredAt).Hours()/24)
 			instance := instances[*cinst.Ec2InstanceId]
@@ -116,10 +126,10 @@ func runCommandInstances(cmd *cobra.Command, args []string) {
 				instance.IPAddress, *instanceType, agentVersion, instance.ImageID,
 				dockerVersion, ageInDays, instance.Name,
 			)
-			if instancesLongOutput == true {
-				detailedInstanceOutput(&cinst)
+			if options.longOutput == true {
+				aws.DetailedInstanceOutput(&cinst)
 			}
 		}
-		fmt.Println()
 	}
+	return nil
 }
