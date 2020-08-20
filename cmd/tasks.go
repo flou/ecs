@@ -8,11 +8,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type tasksCmd struct {
-	cmd  *cobra.Command
-	opts tasksOpts
-}
-
 type tasksOpts struct {
 	region        string
 	clusterFilter string
@@ -20,23 +15,22 @@ type tasksOpts struct {
 	longOutput    bool
 }
 
-func buildTasksCmd() *tasksCmd {
-	var root = &tasksCmd{}
+func buildTasksCmd() *cobra.Command {
+	var opts = tasksOpts{}
 	var cmd = &cobra.Command{
 		Use:   "tasks",
 		Short: "List tasks running in your ECS clusters",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCommandTasks(root.opts)
+			return runCommandTasks(opts)
 		},
 	}
 
-	cmd.Flags().StringVarP(&root.opts.region, "region", "r", "", "AWS region name")
-	cmd.Flags().StringVarP(&root.opts.clusterFilter, "cluster", "c", "", "Filter by the name of the ECS cluster")
-	cmd.Flags().StringVarP(&root.opts.serviceFilter, "service", "s", "", "Filter by the name of the ECS service")
-	cmd.Flags().BoolVarP(&root.opts.longOutput, "long", "l", false, "Enable detailed output of containers parameters")
+	cmd.Flags().StringVarP(&opts.region, "region", "r", "", "AWS region name")
+	cmd.Flags().StringVarP(&opts.clusterFilter, "cluster", "c", "", "Filter by the name of the ECS cluster")
+	cmd.Flags().StringVarP(&opts.serviceFilter, "service", "s", "", "Filter by the name of the ECS service")
+	cmd.Flags().BoolVarP(&opts.longOutput, "long", "l", false, "Enable detailed output of containers parameters")
 
-	root.cmd = cmd
-	return root
+	return cmd
 }
 
 func runCommandTasks(options tasksOpts) error {
