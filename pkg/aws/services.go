@@ -11,6 +11,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	"github.com/fatih/color"
 	"github.com/mitchellh/colorstring"
 )
@@ -140,6 +141,7 @@ func ServiceTaskDefinition(client *ecs.Client, taskDefinition string) ecs.TaskDe
 }
 
 func PrintServiceDetails(client *ecs.Client, service *ecs.Service, longOutput bool) {
+	elbClient := elasticloadbalancingv2.New(client.Config)
 	colorstring.Printf(
 		"%-15s [yellow]%-60s[reset] %-7s %-8s running %d/%d  (%s)\n",
 		serviceStatus(service), *service.ServiceName,
@@ -151,6 +153,22 @@ func PrintServiceDetails(client *ecs.Client, service *ecs.Service, longOutput bo
 		fmt.Println(linkToConsole(service, clusterNameFromArn(*service.ClusterArn)))
 		if taskDefinition.TaskRoleArn != nil {
 			fmt.Printf("IAM Role: %s\n", linkToIAM(shortTaskDefinitionName(*taskDefinition.TaskRoleArn)))
+		}
+
+		for _, lb := range service.LoadBalancers {
+			response, err := elbClient.DescribeTargetGroupsRequest(&elasticloadbalancingv2.DescribeTargetGroupsInput{
+				TargetGroupArns: []string{*lb.TargetGroupArn},
+			}).Send(context.Background())
+			if err != nil {
+				fmt.Println("Failed to describe target group: " + err.Error())
+				os.Exit(1)
+			}
+			targetGroup := response.TargetGroups[0]
+			fmt.Println("Load Balancing:")
+			fmt.Printf("  Target Group: %s\n", *targetGroup.TargetGroupArn)
+			if lb.TargetGroupArn != nil {
+				fmt.Printf("  Healthcheck: %s %s -> %s(%d)\n", targetGroup.Protocol, *targetGroup.HealthCheckPath, *targetGroup.HealthCheckPort, *targetGroup.Port)
+			}
 		}
 		if service.NetworkConfiguration != nil {
 			if service.NetworkConfiguration.AwsvpcConfiguration != nil {

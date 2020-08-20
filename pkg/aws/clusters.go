@@ -65,8 +65,8 @@ func DetailedInstanceOutput(containerInstance *ecs.ContainerInstance) {
 			capabilities = append(capabilities, line)
 		} else {
 			if attr.Value == nil {
-			} else {
 				line = fmt.Sprintf(" - %s", *attr.Name)
+			} else {
 				line = fmt.Sprintf(" - %-22s %s", *attr.Name, colorstring.Color("[yellow]"+*attr.Value))
 			}
 			instanceAttributes = append(instanceAttributes, line)
