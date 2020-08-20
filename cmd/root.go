@@ -44,6 +44,7 @@ func Execute() error {
 		buildServicesCmd(),
 		buildTasksCmd(),
 		buildUpdateCmd(),
+		buildCompletionCmd(),
 	)
 	return rootCmd.Execute()
 }
