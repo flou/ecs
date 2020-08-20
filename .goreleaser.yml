@@ -2,6 +2,7 @@ before:
   hooks:
     # You may remove this if you don't use go modules.
     - go mod download
+
 builds:
   - env:
       - CGO_ENABLED=0
@@ -12,16 +13,21 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{ .CommitDate }}
+      - -s -w -X github.com/flou/ecs/cmd.version={{.Version}} -X github.com/flou/ecs/cmd.commit={{.Commit}}
+
 archives:
-  - replacements:
-      darwin: Darwin
-      linux: Linux
-      windows: Windows
+  - name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
+    replacements:
+      darwin: darwin
+      linux: linux
+      windows: windows
       386: i386
       amd64: x86_64
+    format: binary
+
 checksum:
   name_template: 'checksums.txt'
+
 changelog:
   sort: asc
   filters:
