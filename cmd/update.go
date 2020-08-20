@@ -6,8 +6,8 @@ import (
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/fatih/color"
 	"github.com/flou/ecs/pkg/aws"
-	"github.com/mitchellh/colorstring"
 	"github.com/spf13/cobra"
 )
 
@@ -58,14 +58,14 @@ func runCommandUpdate(options updateOpts) error {
 
 	if options.desiredCount >= 0 {
 		if *ecsService.DesiredCount == options.desiredCount {
-			colorstring.Printf("Service [yellow]%s[reset] already has a DesiredCount of %d\n",
-				options.service, options.desiredCount,
+			fmt.Printf("Service %s already has a DesiredCount of %d\n",
+				color.YellowString(options.service), options.desiredCount,
 			)
 			return nil
 		}
-		colorstring.Printf(
-			"Updating [yellow]%s[reset] / DesiredCount[%d -> %d] RunningCount={%d}\n",
-			options.service, *ecsService.DesiredCount, options.desiredCount, *ecsService.RunningCount,
+		fmt.Printf(
+			"Updating %s / DesiredCount[%d -> %d] RunningCount={%d}\n",
+			color.YellowString(options.service), *ecsService.DesiredCount, options.desiredCount, *ecsService.RunningCount,
 		)
 		params.DesiredCount = &options.desiredCount
 	}
@@ -75,6 +75,6 @@ func runCommandUpdate(options updateOpts) error {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	colorstring.Printf("Service [yellow]%s[reset] successfully updated: DesiredCount=%d\n", options.service, options.desiredCount)
+	fmt.Printf("Service %s successfully updated: DesiredCount=%d\n", color.YellowString(options.service), options.desiredCount)
 	return nil
 }

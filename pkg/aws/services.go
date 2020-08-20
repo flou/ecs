@@ -13,7 +13,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	"github.com/fatih/color"
-	"github.com/mitchellh/colorstring"
 )
 
 // ListServices describes services running in the ECS cluster filtered by cluster name, service name ans service type
@@ -142,9 +141,9 @@ func ServiceTaskDefinition(client *ecs.Client, taskDefinition string) ecs.TaskDe
 
 func PrintServiceDetails(client *ecs.Client, service *ecs.Service, longOutput bool) {
 	elbClient := elasticloadbalancingv2.New(client.Config)
-	colorstring.Printf(
-		"%-15s [yellow]%-60s[reset] %-7s %-8s running %d/%d  (%s)\n",
-		serviceStatus(service), *service.ServiceName,
+	fmt.Printf(
+		"%-15s  %-70s %-7s %-8s running %d/%d  (%s)\n",
+		serviceStatus(service), color.YellowString(*service.ServiceName),
 		service.LaunchType, *service.Status, *service.RunningCount,
 		*service.DesiredCount, shortTaskDefinitionName(*service.TaskDefinition),
 	)
@@ -182,8 +181,8 @@ func PrintServiceDetails(client *ecs.Client, service *ecs.Service, longOutput bo
 			}
 		}
 		for _, container := range taskDefinition.ContainerDefinitions {
-			colorstring.Printf("- Container: [green]%s\n", *container.Name)
-			colorstring.Printf("  Image: [yellow]%s\n", *container.Image)
+			fmt.Printf("- Container: %s\n", color.GreenString(*container.Name))
+			fmt.Printf("  Image: %s\n", color.YellowString(*container.Image))
 			var (
 				containerMemory = "-"
 				containerCPU    = "-"

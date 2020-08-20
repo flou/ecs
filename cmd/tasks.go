@@ -50,6 +50,7 @@ func runCommandTasks(options tasksOpts) error {
 				aws.PrintTaskDetails(client, &task, options.longOutput)
 			}
 		}
+		fmt.Println()
 	}
 	return nil
 }

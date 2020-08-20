@@ -9,8 +9,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/fatih/color"
 	"github.com/flou/ecs/pkg/aws"
-	"github.com/mitchellh/colorstring"
 	"github.com/spf13/cobra"
 )
 
@@ -100,9 +100,9 @@ func runCommandInstances(options instanceOpts) error {
 			"PRIVATE IP", "INST.TYPE", "AGENT", "AMI", "DOCKER", "AGE",
 		)
 		for _, cinst := range describeContainerInstancesResp.ContainerInstances {
-			agentVersion := colorstring.Color("[green]" + *cinst.VersionInfo.AgentVersion)
+			agentVersion := color.GreenString(*cinst.VersionInfo.AgentVersion)
 			if *cinst.AgentConnected == false {
-				agentVersion = colorstring.Color("[red]" + *cinst.VersionInfo.AgentVersion)
+				agentVersion = color.RedString(*cinst.VersionInfo.AgentVersion)
 			}
 			registeredCPU := aws.FindResource(cinst.RegisteredResources, "CPU").IntegerValue
 			remainingCPU := aws.FindResource(cinst.RemainingResources, "CPU").IntegerValue

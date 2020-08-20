@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
-	"github.com/mitchellh/colorstring"
+	"github.com/fatih/color"
 )
 
 // ListClusters returns the list of clusters sorted by name
@@ -60,14 +60,14 @@ func DetailedInstanceOutput(containerInstance *ecs.ContainerInstance) {
 			if attr.Value == nil {
 				line = fmt.Sprintf(" - %s", capability)
 			} else {
-				line = fmt.Sprintf(" - %-22s %s", capability, colorstring.Color("[yellow]"+*attr.Value))
+				line = fmt.Sprintf(" - %-22s %s", capability, color.YellowString(*attr.Value))
 			}
 			capabilities = append(capabilities, line)
 		} else {
 			if attr.Value == nil {
 				line = fmt.Sprintf(" - %s", *attr.Name)
 			} else {
-				line = fmt.Sprintf(" - %-22s %s", *attr.Name, colorstring.Color("[yellow]"+*attr.Value))
+				line = fmt.Sprintf(" - %-22s %s", *attr.Name, color.YellowString(*attr.Value))
 			}
 			instanceAttributes = append(instanceAttributes, line)
 		}
