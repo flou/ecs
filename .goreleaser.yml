@@ -12,15 +12,13 @@ builds:
       - darwin
     flags:
       - -trimpath
-    ldflags:
-      - -s -w -X github.com/flou/ecs/cmd.version={{.Version}} -X github.com/flou/ecs/cmd.commit={{.Commit}}
 
 archives:
   - name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
     format: binary
 
 checksum:
-  name_template: 'checksums.txt'
+  name_template: '{{ .ProjectName }}_checksums.txt'
 
 changelog:
   sort: asc
@@ -28,3 +26,4 @@ changelog:
     exclude:
       - '^docs:'
       - '^test:'
+      - Merge branch
