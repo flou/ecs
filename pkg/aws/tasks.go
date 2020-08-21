@@ -17,6 +17,7 @@ func (c byTaskName) Len() int           { return len(c) }
 func (c byTaskName) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 func (c byTaskName) Less(i, j int) bool { return *c[i].TaskDefinitionArn < *c[j].TaskDefinitionArn }
 
+// ListTasks gives a short list of ECS tasks
 func ListTasks(client *ecs.Client, clusterName, taskFilter string) []ecs.Task {
 	req := client.ListTasksRequest(&ecs.ListTasksInput{Cluster: &clusterName})
 	p := ecs.NewListTasksPaginator(req)
@@ -51,6 +52,7 @@ func describeTasks(client *ecs.Client, clusterName string, tasks []string) []ecs
 	return resp.Tasks
 }
 
+// PrintTaskDetails prints detailed information about an ECS task
 func PrintTaskDetails(client *ecs.Client, task *ecs.Task, longOutput bool) {
 	var status = *task.LastStatus
 	if *task.LastStatus == "PENDING" {

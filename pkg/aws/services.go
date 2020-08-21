@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	"github.com/fatih/color"
@@ -48,7 +47,7 @@ func ListServices(client *ecs.Client, clusterName, serviceFilter, serviceType st
 	return ecsServices
 }
 
-// Describe a list of services running in the ECS cluster
+// DescribeServices describes a list of services running in the ECS cluster
 func DescribeServices(client *ecs.Client, clusterName string, services []string) []ecs.Service {
 	params := ecs.DescribeServicesInput{Cluster: &clusterName, Services: services}
 	resp, err := client.DescribeServicesRequest(&params).Send(context.Background())
@@ -59,6 +58,7 @@ func DescribeServices(client *ecs.Client, clusterName string, services []string)
 	return resp.Services
 }
 
+// FindService checks that a service is actually running in an ECS cluster
 func FindService(client *ecs.Client, cluster, service string) (ecs.Service, error) {
 	var ecsService ecs.Service
 	runningServices := DescribeServices(client, cluster, []string{service})
@@ -71,39 +71,6 @@ func FindService(client *ecs.Client, cluster, service string) (ecs.Service, erro
 		return ecsService, errors.New("No service in cluster")
 	}
 	return runningServices[0], nil
-}
-
-func FindResource(resources []ecs.Resource, name string) ecs.Resource {
-	var resource ecs.Resource
-	for _, res := range resources {
-		if *res.Name == name {
-			resource = res
-			break
-		}
-	}
-	return resource
-}
-
-func FindAttribute(attributes []ecs.Attribute, name string) ecs.Attribute {
-	var attribute ecs.Attribute
-	for _, attr := range attributes {
-		if *attr.Name == name {
-			attribute = attr
-			break
-		}
-	}
-	return attribute
-}
-
-func FindTag(tags []ec2.Tag, name string) ec2.Tag {
-	var tag ec2.Tag
-	for _, t := range tags {
-		if *t.Key == name {
-			tag = t
-			break
-		}
-	}
-	return tag
 }
 
 func serviceUp(service *ecs.Service) bool {
@@ -124,11 +91,13 @@ func serviceStatus(service *ecs.Service) string {
 	return status
 }
 
+// ServiceOk checks that an ECS service is OK (running and steady) or not
 func ServiceOk(service *ecs.Service) bool {
 	status := serviceStatus(service)
 	return strings.Contains(status, "OK")
 }
 
+// ServiceTaskDefinition returns a full task definition from its ARN
 func ServiceTaskDefinition(client *ecs.Client, taskDefinition string) ecs.TaskDefinition {
 	resp, err := client.DescribeTaskDefinitionRequest(
 		&ecs.DescribeTaskDefinitionInput{TaskDefinition: &taskDefinition}).Send(context.Background())
@@ -139,6 +108,7 @@ func ServiceTaskDefinition(client *ecs.Client, taskDefinition string) ecs.TaskDe
 	return *resp.TaskDefinition
 }
 
+// PrintServiceDetails describes an ECS service to fetch detailed information
 func PrintServiceDetails(client *ecs.Client, service *ecs.Service, longOutput bool) {
 	elbClient := elasticloadbalancingv2.New(client.Config)
 	fmt.Printf(

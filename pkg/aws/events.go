@@ -2,6 +2,7 @@ package aws
 
 import "github.com/aws/aws-sdk-go-v2/service/ecs"
 
+// EventsByCreatedAt is a list of ECS events sorted by date (created at)
 type EventsByCreatedAt []ecs.ServiceEvent
 
 func (c EventsByCreatedAt) Len() int           { return len(c) }
