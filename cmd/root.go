@@ -1,30 +1,23 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/apex/log"
 	"github.com/apex/log/handlers/cli"
 	"github.com/spf13/cobra"
-)
-
-var (
-	version string = "dev"
-	commit  string
 )
 
 type rootOpts struct {
 	debug bool
 }
 
-func Execute() error {
+// Execute is the root command for the ecs CLI
+func Execute(version string) error {
 	log.SetHandler(cli.Default)
-	opts := rootOpts{}
-
-	rootCmd := &cobra.Command{
+	var opts = rootOpts{}
+	var cmd = &cobra.Command{
 		Use:           "ecs",
 		Short:         "CLI tool to interact with your ECS clusters",
-		Version:       buildVersion(version, commit),
+		Version:       version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
@@ -35,9 +28,9 @@ func Execute() error {
 		},
 	}
 
-	rootCmd.PersistentFlags().BoolVar(&opts.debug, "debug", false, "Enable debug mode")
+	cmd.PersistentFlags().BoolVar(&opts.debug, "debug", false, "Enable debug mode")
 
-	rootCmd.AddCommand(
+	cmd.AddCommand(
 		buildEventsCmd(),
 		buildImagesCmd(),
 		buildInstancesCmd(),
@@ -46,13 +39,5 @@ func Execute() error {
 		buildUpdateCmd(),
 		buildCompletionCmd(),
 	)
-	return rootCmd.Execute()
-}
-
-func buildVersion(version, commit string) string {
-	var result = version
-	if commit != "" {
-		result = fmt.Sprintf("%s\ncommit: %s", result, commit)
-	}
-	return result
+	return cmd.Execute()
 }
