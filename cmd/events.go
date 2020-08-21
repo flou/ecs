@@ -10,11 +10,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type eventsCmd struct {
-	cmd  *cobra.Command
-	opts eventsOpts
-}
-
 type eventsOpts struct {
 	region        string
 	clusterFilter string
@@ -23,23 +18,22 @@ type eventsOpts struct {
 	skipSteady    bool
 }
 
-func buildEventsCmd() *eventsCmd {
-	var root = &eventsCmd{}
+func buildEventsCmd() *cobra.Command {
+	var opts = eventsOpts{}
 	var cmd = &cobra.Command{
 		Use:   "events",
 		Short: "List events for services running in your ECS clusters",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCommandEvents(root.opts)
+			return runCommandEvents(opts)
 		},
 	}
-	cmd.Flags().StringVarP(&root.opts.region, "region", "r", "", "AWS region name")
-	cmd.Flags().StringVarP(&root.opts.clusterFilter, "cluster", "c", "", "Filter by the name of the ECS cluster")
-	cmd.Flags().StringVarP(&root.opts.serviceFilter, "service", "s", "", "Filter by the name of the ECS service")
-	cmd.Flags().StringVarP(&root.opts.serviceType, "type", "t", "", "Filter by service launch type")
-	cmd.Flags().BoolVar(&root.opts.skipSteady, "skip-steady", false, "Don't display events that say the service is steady")
+	cmd.Flags().StringVarP(&opts.region, "region", "r", "", "AWS region name")
+	cmd.Flags().StringVarP(&opts.clusterFilter, "cluster", "c", "", "Filter by the name of the ECS cluster")
+	cmd.Flags().StringVarP(&opts.serviceFilter, "service", "s", "", "Filter by the name of the ECS service")
+	cmd.Flags().StringVarP(&opts.serviceType, "type", "t", "", "Filter by service launch type")
+	cmd.Flags().BoolVar(&opts.skipSteady, "skip-steady", false, "Don't display events that say the service is steady")
 
-	root.cmd = cmd
-	return root
+	return cmd
 }
 
 func runCommandEvents(options eventsOpts) error {

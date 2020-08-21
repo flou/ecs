@@ -8,11 +8,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type imagesCmd struct {
-	cmd  *cobra.Command
-	opts imagesOpts
-}
-
 type imagesOpts struct {
 	region        string
 	clusterFilter string
@@ -20,23 +15,22 @@ type imagesOpts struct {
 	serviceType   string
 }
 
-func buildImagesCmd() *imagesCmd {
-	var root = &imagesCmd{}
+func buildImagesCmd() *cobra.Command {
+	var opts = imagesOpts{}
 	var cmd = &cobra.Command{
 		Use:   "images",
 		Short: "List the Docker images of a service running in ECS",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCommandImage(root.opts)
+			return runCommandImage(opts)
 		},
 	}
 
-	cmd.Flags().StringVarP(&root.opts.region, "region", "r", "", "AWS region name")
-	cmd.Flags().StringVarP(&root.opts.clusterFilter, "cluster", "c", "", "Filter by the name of the ECS cluster")
-	cmd.Flags().StringVarP(&root.opts.serviceFilter, "service", "s", "", "Filter by the name of the ECS service")
-	cmd.Flags().StringVarP(&root.opts.serviceType, "type", "t", "", "Filter by service launch type")
+	cmd.Flags().StringVarP(&opts.region, "region", "r", "", "AWS region name")
+	cmd.Flags().StringVarP(&opts.clusterFilter, "cluster", "c", "", "Filter by the name of the ECS cluster")
+	cmd.Flags().StringVarP(&opts.serviceFilter, "service", "s", "", "Filter by the name of the ECS service")
+	cmd.Flags().StringVarP(&opts.serviceType, "type", "t", "", "Filter by service launch type")
 
-	root.cmd = cmd
-	return root
+	return cmd
 }
 
 func runCommandImage(options imagesOpts) error {

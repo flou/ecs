@@ -8,11 +8,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type servicesCmd struct {
-	cmd  *cobra.Command
-	opts servicesOpts
-}
-
 type servicesOpts struct {
 	region        string
 	clusterFilter string
@@ -22,25 +17,24 @@ type servicesOpts struct {
 	longOutput    bool
 }
 
-func buildServicesCmd() *servicesCmd {
-	var root = &servicesCmd{}
+func buildServicesCmd() *cobra.Command {
+	var opts = servicesOpts{}
 	var cmd = &cobra.Command{
 		Use:   "services",
 		Short: "List services in your ECS clusters",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCommandServices(root.opts)
+			return runCommandServices(opts)
 		},
 	}
 
-	cmd.Flags().StringVarP(&root.opts.region, "region", "r", "", "AWS region name")
-	cmd.Flags().StringVarP(&root.opts.clusterFilter, "cluster", "c", "", "Filter by the name of the ECS cluster")
-	cmd.Flags().StringVarP(&root.opts.serviceFilter, "service", "s", "", "Filter by the name of the ECS service")
-	cmd.Flags().StringVarP(&root.opts.serviceType, "type", "t", "", "Filter by service launch type")
-	cmd.Flags().BoolVarP(&root.opts.printAll, "all", "a", false, "Print all services, ignoring their status")
-	cmd.Flags().BoolVarP(&root.opts.longOutput, "long", "l", false, "Enable detailed output of containers parameters")
+	cmd.Flags().StringVarP(&opts.region, "region", "r", "", "AWS region name")
+	cmd.Flags().StringVarP(&opts.clusterFilter, "cluster", "c", "", "Filter by the name of the ECS cluster")
+	cmd.Flags().StringVarP(&opts.serviceFilter, "service", "s", "", "Filter by the name of the ECS service")
+	cmd.Flags().StringVarP(&opts.serviceType, "type", "t", "", "Filter by service launch type")
+	cmd.Flags().BoolVarP(&opts.printAll, "all", "a", false, "Print all services, ignoring their status")
+	cmd.Flags().BoolVarP(&opts.longOutput, "long", "l", false, "Enable detailed output of containers parameters")
 
-	root.cmd = cmd
-	return root
+	return cmd
 }
 
 func runCommandServices(options servicesOpts) error {
@@ -75,6 +69,7 @@ func runCommandServices(options servicesOpts) error {
 				aws.PrintServiceDetails(client, &svc, options.longOutput)
 			}
 		}
+		fmt.Println()
 	}
 	return nil
 }

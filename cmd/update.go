@@ -6,15 +6,10 @@ import (
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/fatih/color"
 	"github.com/flou/ecs/pkg/aws"
-	"github.com/mitchellh/colorstring"
 	"github.com/spf13/cobra"
 )
-
-type updateCmd struct {
-	cmd  *cobra.Command
-	opts updateOpts
-}
 
 type updateOpts struct {
 	region       string
@@ -24,27 +19,26 @@ type updateOpts struct {
 	force        bool
 }
 
-func buildUpdateCmd() *updateCmd {
-	var root = &updateCmd{}
+func buildUpdateCmd() *cobra.Command {
+	var opts = updateOpts{}
 	var cmd = &cobra.Command{
 		Use:   "update",
 		Short: "Update the service to a specific DesiredCount",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCommandUpdate(root.opts)
+			return runCommandUpdate(opts)
 		},
 	}
 
-	cmd.Flags().StringVarP(&root.opts.region, "region", "r", "", "AWS region name")
-	cmd.Flags().StringVarP(&root.opts.cluster, "cluster", "c", "", "Name of the ECS cluster")
+	cmd.Flags().StringVarP(&opts.region, "region", "r", "", "AWS region name")
+	cmd.Flags().StringVarP(&opts.cluster, "cluster", "c", "", "Name of the ECS cluster")
 	cmd.MarkFlagRequired("cluster")
-	cmd.Flags().StringVarP(&root.opts.service, "service", "s", "", "Name of the ECS service")
+	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Name of the ECS service")
 	cmd.MarkFlagRequired("service")
 
-	cmd.Flags().Int64Var(&root.opts.desiredCount, "count", -1, "New DesiredCount")
-	cmd.Flags().BoolVarP(&root.opts.force, "force", "f", false, "Force a new deployment of the service")
+	cmd.Flags().Int64Var(&opts.desiredCount, "count", -1, "New DesiredCount")
+	cmd.Flags().BoolVarP(&opts.force, "force", "f", false, "Force a new deployment of the service")
 
-	root.cmd = cmd
-	return root
+	return cmd
 }
 
 func runCommandUpdate(options updateOpts) error {
@@ -64,14 +58,14 @@ func runCommandUpdate(options updateOpts) error {
 
 	if options.desiredCount >= 0 {
 		if *ecsService.DesiredCount == options.desiredCount {
-			colorstring.Printf("Service [yellow]%s[reset] already has a DesiredCount of %d\n",
-				options.service, options.desiredCount,
+			fmt.Printf("Service %s already has a DesiredCount of %d\n",
+				color.YellowString(options.service), options.desiredCount,
 			)
 			return nil
 		}
-		colorstring.Printf(
-			"Updating [yellow]%s[reset] / DesiredCount[%d -> %d] RunningCount={%d}\n",
-			options.service, *ecsService.DesiredCount, options.desiredCount, *ecsService.RunningCount,
+		fmt.Printf(
+			"Updating %s / DesiredCount[%d -> %d] RunningCount={%d}\n",
+			color.YellowString(options.service), *ecsService.DesiredCount, options.desiredCount, *ecsService.RunningCount,
 		)
 		params.DesiredCount = &options.desiredCount
 	}
@@ -81,6 +75,6 @@ func runCommandUpdate(options updateOpts) error {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	colorstring.Printf("Service [yellow]%s[reset] successfully updated: DesiredCount=%d\n", options.service, options.desiredCount)
+	fmt.Printf("Service %s successfully updated: DesiredCount=%d\n", color.YellowString(options.service), options.desiredCount)
 	return nil
 }

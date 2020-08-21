@@ -9,15 +9,10 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/fatih/color"
 	"github.com/flou/ecs/pkg/aws"
-	"github.com/mitchellh/colorstring"
 	"github.com/spf13/cobra"
 )
-
-type instancesCmd struct {
-	cmd  *cobra.Command
-	opts instanceOpts
-}
 
 type instanceOpts struct {
 	region        string
@@ -25,27 +20,26 @@ type instanceOpts struct {
 	longOutput    bool
 }
 
-type eInstance struct {
-	IPAddress string
-	ImageID   string
-	Name      string
-}
-
-func buildInstancesCmd() *instancesCmd {
-	var root = &instancesCmd{}
+func buildInstancesCmd() *cobra.Command {
+	var opts = instanceOpts{}
 	var cmd = &cobra.Command{
 		Use:   "instances",
 		Short: "List container instances in your ECS clusters",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCommandInstances(root.opts)
+			return runCommandInstances(opts)
 		},
 	}
-	cmd.Flags().StringVarP(&root.opts.region, "region", "r", "", "AWS region name")
-	cmd.Flags().StringVarP(&root.opts.clusterFilter, "cluster", "c", "", "Filter by the name of the ECS cluster")
-	cmd.Flags().BoolVarP(&root.opts.longOutput, "long", "l", false, "Enable detailed output of containers instances")
+	cmd.Flags().StringVarP(&opts.region, "region", "r", "", "AWS region name")
+	cmd.Flags().StringVarP(&opts.clusterFilter, "cluster", "c", "", "Filter by the name of the ECS cluster")
+	cmd.Flags().BoolVarP(&opts.longOutput, "long", "l", false, "Enable detailed output of containers instances")
 
-	root.cmd = cmd
-	return root
+	return cmd
+}
+
+type eInstance struct {
+	IPAddress string
+	ImageID   string
+	Name      string
 }
 
 func runCommandInstances(options instanceOpts) error {
@@ -101,15 +95,14 @@ func runCommandInstances(options instanceOpts) error {
 			}
 		}
 		fmt.Printf(
-			"%-20s  %-8s %5s  %8s %8s  %8s %8s  %15s %12s  %6v  %-12s  %-8s  %11s  %s\n",
-			"INSTANCE ID", "STATUS", "TASKS", "CPU/used", "CPU/free",
-			"MEM/used", "MEM/free", "PRIVATE IP", "INST.TYPE", "AGENT",
-			"IMAGE", "DOCKER", "AGE", "NAME",
+			"%-20s  %-8s %5s  %10s  %10s  %15s %10s  %6v  %-21s  %-6s  %10s\n",
+			"INSTANCE ID", "STATUS", "TASKS", "CPU:used/free", "MEM:used/free",
+			"PRIVATE IP", "INST.TYPE", "AGENT", "AMI", "DOCKER", "AGE",
 		)
 		for _, cinst := range describeContainerInstancesResp.ContainerInstances {
-			agentVersion := colorstring.Color("[green]" + *cinst.VersionInfo.AgentVersion)
+			agentVersion := color.GreenString(*cinst.VersionInfo.AgentVersion)
 			if *cinst.AgentConnected == false {
-				agentVersion = colorstring.Color("[red]" + *cinst.VersionInfo.AgentVersion)
+				agentVersion = color.RedString(*cinst.VersionInfo.AgentVersion)
 			}
 			registeredCPU := aws.FindResource(cinst.RegisteredResources, "CPU").IntegerValue
 			remainingCPU := aws.FindResource(cinst.RemainingResources, "CPU").IntegerValue
@@ -120,16 +113,18 @@ func runCommandInstances(options instanceOpts) error {
 			ageInDays := fmt.Sprintf("%4.1f days", time.Since(*cinst.RegisteredAt).Hours()/24)
 			instance := instances[*cinst.Ec2InstanceId]
 			fmt.Printf(
-				"%-20s  %-8s %5d  %8d %8d  %8d %8d  %15s %12s  %-6v  %12s  %10s  %s  %s\n",
+				"%-20s  %-8s %5d  %13s  %13s  %15s %10s  %-6v  %12s  %7s  %s\n",
 				*cinst.Ec2InstanceId, *cinst.Status, *cinst.RunningTasksCount,
-				*registeredCPU-*remainingCPU, *remainingCPU, *registeredMemory-*remainingMemory, *remainingMemory,
+				fmt.Sprintf("%d/%d", *registeredCPU-*remainingCPU, *remainingCPU),
+				fmt.Sprintf("%d/%d", *registeredMemory-*remainingMemory, *remainingMemory),
 				instance.IPAddress, *instanceType, agentVersion, instance.ImageID,
-				dockerVersion, ageInDays, instance.Name,
+				dockerVersion, ageInDays,
 			)
 			if options.longOutput == true {
 				aws.DetailedInstanceOutput(&cinst)
 			}
 		}
+		fmt.Println()
 	}
 	return nil
 }

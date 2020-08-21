@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
-	"github.com/mitchellh/colorstring"
+	"github.com/fatih/color"
 )
 
 type byTaskName []ecs.Task
@@ -17,6 +17,7 @@ func (c byTaskName) Len() int           { return len(c) }
 func (c byTaskName) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 func (c byTaskName) Less(i, j int) bool { return *c[i].TaskDefinitionArn < *c[j].TaskDefinitionArn }
 
+// ListTasks gives a short list of ECS tasks
 func ListTasks(client *ecs.Client, clusterName, taskFilter string) []ecs.Task {
 	req := client.ListTasksRequest(&ecs.ListTasksInput{Cluster: &clusterName})
 	p := ecs.NewListTasksPaginator(req)
@@ -51,9 +52,14 @@ func describeTasks(client *ecs.Client, clusterName string, tasks []string) []ecs
 	return resp.Tasks
 }
 
+// PrintTaskDetails prints detailed information about an ECS task
 func PrintTaskDetails(client *ecs.Client, task *ecs.Task, longOutput bool) {
+	var status = *task.LastStatus
+	if *task.LastStatus == "PENDING" {
+		status = color.YellowString(status) + "   "
+	}
 	fmt.Printf(
-		"%-60s  %-10s", shortTaskDefinitionName(*task.TaskDefinitionArn), *task.LastStatus,
+		"%-70s  %-10s", shortTaskDefinitionName(*task.TaskDefinitionArn), status,
 	)
 	if task.Cpu != nil {
 		fmt.Printf("  Cpu: %4s", *task.Cpu)
@@ -65,7 +71,7 @@ func PrintTaskDetails(client *ecs.Client, task *ecs.Task, longOutput bool) {
 	if longOutput == true {
 		taskDefinition := ServiceTaskDefinition(client, *task.TaskDefinitionArn)
 		for _, container := range taskDefinition.ContainerDefinitions {
-			colorstring.Printf("- Container: [green]%s\n", *container.Name)
+			fmt.Printf("- Container: %s\n", color.GreenString(*container.Name))
 			fmt.Printf("  Image: %s\n", *container.Image)
 			fmt.Printf("  Memory: %d / CPU: %d\n", *container.Memory, *container.Cpu)
 			if len(container.PortMappings) > 0 {

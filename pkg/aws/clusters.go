@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
-	"github.com/mitchellh/colorstring"
 )
 
 // ListClusters returns the list of clusters sorted by name
@@ -34,6 +33,7 @@ func ListClusters(client *ecs.Client, filter string) []string {
 	return clusterNames
 }
 
+// DescribeClusters describes ECS clusters to fetch detailed information
 func DescribeClusters(client *ecs.Client, clusters []string) []ecs.Cluster {
 	descClusterReq := client.DescribeClustersRequest(&ecs.DescribeClustersInput{Clusters: clusters})
 	descClusterOutput, err := descClusterReq.Send(context.Background())
@@ -45,42 +45,4 @@ func DescribeClusters(client *ecs.Client, clusters []string) []ecs.Cluster {
 		return *descClusterOutput.Clusters[i].ClusterName < *descClusterOutput.Clusters[j].ClusterName
 	})
 	return descClusterOutput.Clusters
-}
-
-func DetailedInstanceOutput(containerInstance *ecs.ContainerInstance) {
-	var line string
-	instanceAttributes := make([]string, 0)
-	capabilities := make([]string, 0)
-	for _, attr := range containerInstance.Attributes {
-		if strings.Contains(*attr.Name, "ecs.capability.") {
-			capability := strings.SplitAfter(*attr.Name, "ecs.capability.")[1]
-			if strings.HasPrefix(capability, "docker-remote-api.") {
-				continue
-			}
-			if attr.Value == nil {
-				line = fmt.Sprintf(" - %s", capability)
-			} else {
-				line = fmt.Sprintf(" - %-22s %s", capability, colorstring.Color("[yellow]"+*attr.Value))
-			}
-			capabilities = append(capabilities, line)
-		} else {
-			if attr.Value == nil {
-			} else {
-				line = fmt.Sprintf(" - %s", *attr.Name)
-				line = fmt.Sprintf(" - %-22s %s", *attr.Name, colorstring.Color("[yellow]"+*attr.Value))
-			}
-			instanceAttributes = append(instanceAttributes, line)
-		}
-	}
-	fmt.Println("Attributes:")
-	sort.Strings(instanceAttributes)
-	for _, attr := range instanceAttributes {
-		fmt.Println(attr)
-	}
-	fmt.Println("Capabilities:")
-	sort.Strings(capabilities)
-	for _, attr := range capabilities {
-		fmt.Println(attr)
-	}
-	fmt.Println()
 }

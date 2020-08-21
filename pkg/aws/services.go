@@ -9,10 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	"github.com/fatih/color"
-	"github.com/mitchellh/colorstring"
 )
 
 // ListServices describes services running in the ECS cluster filtered by cluster name, service name ans service type
@@ -48,7 +47,7 @@ func ListServices(client *ecs.Client, clusterName, serviceFilter, serviceType st
 	return ecsServices
 }
 
-// Describe a list of services running in the ECS cluster
+// DescribeServices describes a list of services running in the ECS cluster
 func DescribeServices(client *ecs.Client, clusterName string, services []string) []ecs.Service {
 	params := ecs.DescribeServicesInput{Cluster: &clusterName, Services: services}
 	resp, err := client.DescribeServicesRequest(&params).Send(context.Background())
@@ -59,6 +58,7 @@ func DescribeServices(client *ecs.Client, clusterName string, services []string)
 	return resp.Services
 }
 
+// FindService checks that a service is actually running in an ECS cluster
 func FindService(client *ecs.Client, cluster, service string) (ecs.Service, error) {
 	var ecsService ecs.Service
 	runningServices := DescribeServices(client, cluster, []string{service})
@@ -71,39 +71,6 @@ func FindService(client *ecs.Client, cluster, service string) (ecs.Service, erro
 		return ecsService, errors.New("No service in cluster")
 	}
 	return runningServices[0], nil
-}
-
-func FindResource(resources []ecs.Resource, name string) ecs.Resource {
-	var resource ecs.Resource
-	for _, res := range resources {
-		if *res.Name == name {
-			resource = res
-			break
-		}
-	}
-	return resource
-}
-
-func FindAttribute(attributes []ecs.Attribute, name string) ecs.Attribute {
-	var attribute ecs.Attribute
-	for _, attr := range attributes {
-		if *attr.Name == name {
-			attribute = attr
-			break
-		}
-	}
-	return attribute
-}
-
-func FindTag(tags []ec2.Tag, name string) ec2.Tag {
-	var tag ec2.Tag
-	for _, t := range tags {
-		if *t.Key == name {
-			tag = t
-			break
-		}
-	}
-	return tag
 }
 
 func serviceUp(service *ecs.Service) bool {
@@ -124,11 +91,13 @@ func serviceStatus(service *ecs.Service) string {
 	return status
 }
 
+// ServiceOk checks that an ECS service is OK (running and steady) or not
 func ServiceOk(service *ecs.Service) bool {
 	status := serviceStatus(service)
 	return strings.Contains(status, "OK")
 }
 
+// ServiceTaskDefinition returns a full task definition from its ARN
 func ServiceTaskDefinition(client *ecs.Client, taskDefinition string) ecs.TaskDefinition {
 	resp, err := client.DescribeTaskDefinitionRequest(
 		&ecs.DescribeTaskDefinitionInput{TaskDefinition: &taskDefinition}).Send(context.Background())
@@ -139,10 +108,12 @@ func ServiceTaskDefinition(client *ecs.Client, taskDefinition string) ecs.TaskDe
 	return *resp.TaskDefinition
 }
 
+// PrintServiceDetails describes an ECS service to fetch detailed information
 func PrintServiceDetails(client *ecs.Client, service *ecs.Service, longOutput bool) {
-	colorstring.Printf(
-		"%-15s [yellow]%-60s[reset] %-7s %-8s running %d/%d  (%s)\n",
-		serviceStatus(service), *service.ServiceName,
+	elbClient := elasticloadbalancingv2.New(client.Config)
+	fmt.Printf(
+		"%-15s  %-70s %-7s %-8s running %d/%d  (%s)\n",
+		serviceStatus(service), color.YellowString(*service.ServiceName),
 		service.LaunchType, *service.Status, *service.RunningCount,
 		*service.DesiredCount, shortTaskDefinitionName(*service.TaskDefinition),
 	)
@@ -151,6 +122,22 @@ func PrintServiceDetails(client *ecs.Client, service *ecs.Service, longOutput bo
 		fmt.Println(linkToConsole(service, clusterNameFromArn(*service.ClusterArn)))
 		if taskDefinition.TaskRoleArn != nil {
 			fmt.Printf("IAM Role: %s\n", linkToIAM(shortTaskDefinitionName(*taskDefinition.TaskRoleArn)))
+		}
+
+		for _, lb := range service.LoadBalancers {
+			response, err := elbClient.DescribeTargetGroupsRequest(&elasticloadbalancingv2.DescribeTargetGroupsInput{
+				TargetGroupArns: []string{*lb.TargetGroupArn},
+			}).Send(context.Background())
+			if err != nil {
+				fmt.Println("Failed to describe target group: " + err.Error())
+				os.Exit(1)
+			}
+			targetGroup := response.TargetGroups[0]
+			fmt.Println("Load Balancing:")
+			fmt.Printf("  Target Group: %s\n", *targetGroup.TargetGroupArn)
+			if lb.TargetGroupArn != nil {
+				fmt.Printf("  Healthcheck: %s %s -> %s(%d)\n", targetGroup.Protocol, *targetGroup.HealthCheckPath, *targetGroup.HealthCheckPort, *targetGroup.Port)
+			}
 		}
 		if service.NetworkConfiguration != nil {
 			if service.NetworkConfiguration.AwsvpcConfiguration != nil {
@@ -164,8 +151,8 @@ func PrintServiceDetails(client *ecs.Client, service *ecs.Service, longOutput bo
 			}
 		}
 		for _, container := range taskDefinition.ContainerDefinitions {
-			colorstring.Printf("- Container: [green]%s\n", *container.Name)
-			colorstring.Printf("  Image: [yellow]%s\n", *container.Image)
+			fmt.Printf("- Container: %s\n", color.GreenString(*container.Name))
+			fmt.Printf("  Image: %s\n", color.YellowString(*container.Image))
 			var (
 				containerMemory = "-"
 				containerCPU    = "-"
